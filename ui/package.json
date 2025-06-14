@@ -1,38 +1,23 @@
 {
-  "name": "ui",
   "private": true,
-  "version": "0.0.0",
-  "type": "module",
+  "author": "slowlyo <slowlyo_email@qq.com>",
   "scripts": {
-    "dev": "vite",
-    "build": "tsc -b && vite build",
-    "lint": "eslint .",
-    "preview": "vite preview"
+    "dev": "max dev",
+    "build": "max build",
+    "postinstall": "max setup",
+    "setup": "max setup",
+    "start": "npm run dev"
   },
   "dependencies": {
-    "@radix-ui/react-slot": "^1.2.3",
-    "@tailwindcss/vite": "^4.1.10",
-    "class-variance-authority": "^0.7.1",
-    "clsx": "^2.1.1",
-    "lucide-react": "^0.514.0",
-    "react": "^19.1.0",
-    "react-dom": "^19.1.0",
-    "tailwind-merge": "^3.3.1",
-    "tailwindcss": "^4.1.10"
+    "@ant-design/icons": "^5.0.1",
+    "@ant-design/pro-components": "^2.4.4",
+    "@umijs/max": "^4.4.11",
+    "antd": "^5.26.0"
   },
   "devDependencies": {
-    "@eslint/js": "^9.25.0",
-    "@types/node": "^24.0.1",
-    "@types/react": "^19.1.2",
-    "@types/react-dom": "^19.1.2",
-    "@vitejs/plugin-react": "^4.4.1",
-    "eslint": "^9.25.0",
-    "eslint-plugin-react-hooks": "^5.2.0",
-    "eslint-plugin-react-refresh": "^0.4.19",
-    "globals": "^16.0.0",
-    "tw-animate-css": "^1.3.4",
-    "typescript": "~5.8.3",
-    "typescript-eslint": "^8.30.1",
-    "vite": "^6.3.5"
+    "@types/react": "^18.0.33",
+    "@types/react-dom": "^18.0.11",
+    "typescript": "^5.0.3",
+    "tailwindcss": "^3"
   }
 }
