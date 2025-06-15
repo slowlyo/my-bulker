@@ -1,10 +1,11 @@
 import { PageContainer, ProTable } from '@ant-design/pro-components';
 import type { ActionType, ProColumns } from '@ant-design/pro-components';
-import { Button, Popconfirm, message } from 'antd';
+import { Button, Popconfirm, message, Space, Tag } from 'antd';
 import { useRef, useState } from 'react';
 import { addInstance, deleteInstance, modifyInstance, queryInstanceList } from '@/services/instance/InstanceController';
 import InstanceForm from './components/InstanceForm';
 import { InstanceInfo } from '@/services/instance/typings';
+import { EditOutlined, DeleteOutlined } from '@ant-design/icons';
 
 const InstancePage: React.FC = () => {
     const actionRef = useRef<ActionType>();
@@ -17,6 +18,7 @@ const InstancePage: React.FC = () => {
             dataIndex: 'name',
             copyable: true,
             ellipsis: true,
+            render: (text) => <strong>{text}</strong>,
         },
         {
             title: '主机地址',
@@ -31,13 +33,20 @@ const InstancePage: React.FC = () => {
             ellipsis: true,
         },
         {
+            title: '数据库版本',
+            dataIndex: 'version',
+            ellipsis: true,
+            hideInSearch: true,
+            render: (text) => <Tag color="blue">{text}</Tag>,
+        },
+        {
             title: '备注',
             dataIndex: 'remark',
             ellipsis: true,
         },
         {
             title: '创建时间',
-            dataIndex: 'createTime',
+            dataIndex: 'created_at',
             valueType: 'dateTime',
             hideInSearch: true,
         },
@@ -45,59 +54,82 @@ const InstancePage: React.FC = () => {
             title: '操作',
             valueType: 'option',
             key: 'option',
-            render: (_, record) => [
-                <a
-                    key="edit"
-                    onClick={() => {
-                        setEditingInstance(record);
-                        setDrawerVisible(true);
-                    }}
-                >
-                    编辑
-                </a>,
-                <Popconfirm
-                    key="delete"
-                    title="确定要删除这个实例吗？"
-                    onConfirm={async () => {
-                        try {
-                            await deleteInstance({ instanceId: record.id });
-                            message.success('删除成功');
-                            actionRef.current?.reload();
-                        } catch (error) {
-                            message.error('删除失败');
-                        }
-                    }}
-                >
-                    <a>删除</a>
-                </Popconfirm>,
-            ],
+            width: 160,
+            render: (_, record) => (
+                <Space size="small">
+                    <Button
+                        key="edit"
+                        type="link"
+                        size="small"
+                        icon={<EditOutlined />}
+                        onClick={() => {
+                            setEditingInstance(record);
+                            setDrawerVisible(true);
+                        }}
+                    >
+                        编辑
+                    </Button>
+                    <Popconfirm
+                        key="delete"
+                        title="确定要删除这个实例吗？"
+                        onConfirm={async () => {
+                            try {
+                                await deleteInstance({ instanceId: String(record.id) });
+                                message.success('删除成功');
+                                actionRef.current?.reload();
+                            } catch (error) {
+                                message.error('删除失败');
+                            }
+                        }}
+                    >
+                        <Button
+                            type="link"
+                            size="small"
+                            danger
+                            icon={<DeleteOutlined />}
+                        >
+                            删除
+                        </Button>
+                    </Popconfirm>
+                </Space>
+            ),
         },
     ];
 
     const handleSubmit = async (values: any) => {
         try {
             if (editingInstance) {
-                await modifyInstance(
-                    { instanceId: editingInstance.id },
+                const res = await modifyInstance(
+                    { instanceId: String(editingInstance.id) },
                     values
                 );
-                message.success('更新成功');
+                if (res.code === 200) {
+                    message.success(res.message || '更新成功');
+                    setDrawerVisible(false);
+                    setEditingInstance(null);
+                    actionRef.current?.reload();
+                } else {
+                    message.error(res.message || '更新失败');
+                }
             } else {
-                await addInstance(values);
-                message.success('创建成功');
+                const res = await addInstance(values);
+                if (res.code === 200) {
+                    message.success(res.message || '创建成功');
+                    setDrawerVisible(false);
+                    setEditingInstance(null);
+                    actionRef.current?.reload();
+                } else {
+                    message.error(res.message || '创建失败');
+                }
             }
-            setDrawerVisible(false);
-            setEditingInstance(null);
-            actionRef.current?.reload();
-        } catch (error) {
-            message.error('操作失败');
+        } catch (error: any) {
+            message.error(error.message || '操作失败');
         }
     };
 
     return (
         <PageContainer>
             <ProTable<InstanceInfo>
-                headerTitle="实例列表"
                 actionRef={actionRef}
                 rowKey="id"
                 search={{
@@ -118,13 +150,13 @@ const InstancePage: React.FC = () => {
                 request={async (params) => {
                     const { current, pageSize, ...rest } = params;
                     const res = await queryInstanceList({
-                        current,
+                        page: current,
                         pageSize,
                         ...rest,
                     });
                     return {
-                        data: res.data?.list || [],
-                        success: res.success,
+                        data: res.data?.items || [],
+                        success: res.code === 200,
                         total: res.data?.total || 0,
                     };
                 }}

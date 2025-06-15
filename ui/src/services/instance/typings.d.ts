@@ -1,39 +1,38 @@
 export interface PageInfo_InstanceInfo_ {
-  current?: number;
-  pageSize?: number;
-  total?: number;
-  list?: Array<InstanceInfo>;
+  total: number;
+  items: Array<InstanceInfo>;
 }
 
 export interface Result_PageInfo_InstanceInfo__ {
-  success?: boolean;
-  errorMessage?: string;
-  data?: PageInfo_InstanceInfo_;
+  code: number;
+  message: string;
+  data: PageInfo_InstanceInfo_;
 }
 
 export interface Result_InstanceInfo_ {
-  success?: boolean;
-  errorMessage?: string;
-  data?: InstanceInfo;
+  code: number;
+  message: string;
+  data: InstanceInfo;
 }
 
 export interface Result_string_ {
-  success?: boolean;
-  errorMessage?: string;
-  data?: string;
+  code: number;
+  message: string;
+  data: string;
 }
 
 export interface InstanceInfo {
-  id?: string;
+  id: number;
   name: string;
   host: string;
   port: number;
   username: string;
   password: string;
-  extraParams?: Record<string, any>;
-  remark?: string;
-  createTime?: string;
-  updateTime?: string;
+  version: string;
+  params: Array<Record<string, string>>;
+  remark: string;
+  created_at: string;
+  updated_at: string;
 }
 
 export interface InstanceInfoVO {
@@ -42,6 +41,6 @@ export interface InstanceInfoVO {
   port: number;
   username: string;
   password: string;
-  extraParams?: Record<string, any>;
-  remark?: string;
+  params: Array<Record<string, string>>;
+  remark: string;
 } 

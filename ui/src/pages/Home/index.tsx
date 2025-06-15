@@ -10,7 +10,6 @@ const HomePage: React.FC = () => {
       <div className="text-blue-500">
         <Guide name={trim(name)} />
       </div>
-      <div className="w-3 h-3 rounded-full bg-red-500"></div>
     </PageContainer>
   );
 };

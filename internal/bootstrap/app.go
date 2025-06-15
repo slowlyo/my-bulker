@@ -1,6 +1,8 @@
 package bootstrap
 
 import (
+	"log"
+	"mysql-batch-tools/internal/pkg/database"
 	"mysql-batch-tools/internal/router"
 
 	"github.com/gofiber/fiber/v2"
@@ -10,6 +12,11 @@ import (
 
 // NewApp 创建应用实例
 func NewApp() *fiber.App {
+	// 初始化数据库
+	if err := database.Init(); err != nil {
+		log.Fatalf("Failed to initialize database: %v", err)
+	}
+
 	// 创建 Fiber 应用实例
 	app := fiber.New(fiber.Config{
 		AppName: "mysql-batch-tools v1.0.0",

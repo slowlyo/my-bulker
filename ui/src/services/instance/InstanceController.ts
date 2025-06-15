@@ -1,19 +1,20 @@
 import { request } from '@umijs/max';
+import { InstanceInfo, InstanceInfoVO, Result_InstanceInfo_, Result_PageInfo_InstanceInfo__, Result_string_ } from './typings';
 
-/** 获取实例列表 GET /api/v1/instances */
+/** 获取实例列表 GET /api/instances */
 export async function queryInstanceList(
   params: {
     // query
     /** keyword */
     keyword?: string;
-    /** current */
-    current?: number;
+    /** page */
+    page?: number;
     /** pageSize */
     pageSize?: number;
   },
   options?: { [key: string]: any },
 ) {
-  return request<API.Result_PageInfo_InstanceInfo__>('/api/v1/instances', {
+  return request<Result_PageInfo_InstanceInfo__>('/api/instances', {
     method: 'GET',
     params: {
       ...params,
@@ -22,12 +23,12 @@ export async function queryInstanceList(
   });
 }
 
-/** 新增实例 POST /api/v1/instances */
+/** 新增实例 POST /api/instances */
 export async function addInstance(
-  body?: API.InstanceInfoVO,
+  body?: InstanceInfoVO,
   options?: { [key: string]: any },
 ) {
-  return request<API.Result_InstanceInfo_>('/api/v1/instances', {
+  return request<Result_InstanceInfo_>('/api/instances', {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -37,7 +38,7 @@ export async function addInstance(
   });
 }
 
-/** 获取实例详情 GET /api/v1/instances/${param0} */
+/** 获取实例详情 GET /api/instances/${param0} */
 export async function getInstanceDetail(
   params: {
     // path
@@ -47,25 +48,25 @@ export async function getInstanceDetail(
   options?: { [key: string]: any },
 ) {
   const { instanceId: param0 } = params;
-  return request<API.Result_InstanceInfo_>(`/api/v1/instances/${param0}`, {
+  return request<Result_InstanceInfo_>(`/api/instances/${param0}`, {
     method: 'GET',
     params: { ...params },
     ...(options || {}),
   });
 }
 
-/** 更新实例 PUT /api/v1/instances/${param0} */
+/** 更新实例 PUT /api/instances/${param0} */
 export async function modifyInstance(
   params: {
     // path
     /** instanceId */
     instanceId?: string;
   },
-  body?: API.InstanceInfoVO,
+  body?: InstanceInfoVO,
   options?: { [key: string]: any },
 ) {
   const { instanceId: param0 } = params;
-  return request<API.Result_InstanceInfo_>(`/api/v1/instances/${param0}`, {
+  return request<Result_InstanceInfo_>(`/api/instances/${param0}`, {
     method: 'PUT',
     headers: {
       'Content-Type': 'application/json',
@@ -76,7 +77,7 @@ export async function modifyInstance(
   });
 }
 
-/** 删除实例 DELETE /api/v1/instances/${param0} */
+/** 删除实例 DELETE /api/instances/${param0} */
 export async function deleteInstance(
   params: {
     // path
@@ -86,9 +87,29 @@ export async function deleteInstance(
   options?: { [key: string]: any },
 ) {
   const { instanceId: param0 } = params;
-  return request<API.Result_string_>(`/api/v1/instances/${param0}`, {
+  return request<Result_string_>(`/api/instances/${param0}`, {
     method: 'DELETE',
     params: { ...params },
+    ...(options || {}),
+  });
+}
+
+/** 测试数据库连接 POST /api/instances/test-connection */
+export async function testConnection(
+  body?: {
+    host: string;
+    port: number;
+    username: string;
+    password: string;
+  },
+  options?: { [key: string]: any },
+) {
+  return request<Result_string_>('/api/instances/test-connection', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    data: body,
     ...(options || {}),
   });
 } 

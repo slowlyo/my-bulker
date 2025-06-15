@@ -1,6 +1,8 @@
-import { Button, Drawer, Form, Input, InputNumber, Space } from 'antd';
+import { Button, Drawer, Form, Input, InputNumber, Space, message } from 'antd';
 import { MinusCircleOutlined, PlusOutlined } from '@ant-design/icons';
 import { InstanceInfo } from '@/services/instance/typings';
+import { useEffect, useState } from 'react';
+import { testConnection } from '@/services/instance/InstanceController';
 
 interface InstanceFormProps {
     visible: boolean;
@@ -16,29 +18,76 @@ const InstanceForm: React.FC<InstanceFormProps> = ({
     editingInstance,
 }) => {
     const [form] = Form.useForm();
+    const [testing, setTesting] = useState(false);
+
+    // 监听 visible 和 editingInstance 的变化，重置表单
+    useEffect(() => {
+        if (visible) {
+            form.setFieldsValue(editingInstance ? {
+                ...editingInstance,
+                params: editingInstance.params.map(param => {
+                    const [[key, value]] = Object.entries(param);
+                    return { key, value };
+                })
+            } : {
+                port: 3306,
+                params: []
+            });
+        } else {
+            form.resetFields();
+        }
+    }, [visible, editingInstance, form]);
+
+    const handleTestConnection = async () => {
+        try {
+            const values = await form.validateFields(['host', 'port', 'username', 'password']);
+            setTesting(true);
+            const res = await testConnection(values);
+            if (res.code === 200) {
+                message.success('连接测试成功');
+            } else {
+                message.error(res.message || '连接测试失败');
+            }
+        } catch (error: any) {
+            message.error(error.message || '连接测试失败');
+        } finally {
+            setTesting(false);
+        }
+    };
 
     const handleSubmit = async () => {
         try {
             const values = await form.validateFields();
-            // 将 extraParams 数组转换为对象格式
-            const extraParamsArray = values.extraParams || [];
-            const extraParams = extraParamsArray.reduce((acc: Record<string, any>, curr: { key: string; value: string }) => {
-                if (curr.key && curr.value) {
-                    acc[curr.key] = curr.value;
-                }
-                return acc;
-            }, {});
+            // 先测试连接
+            setTesting(true);
+            const testRes = await testConnection({
+                host: values.host,
+                port: values.port,
+                username: values.username,
+                password: values.password,
+            });
+            if (testRes.code !== 200) {
+                message.error(testRes.message || '连接测试失败');
+                return;
+            }
+            setTesting(false);
+
+            // 将 params 数组转换为对象格式
+            const paramsArray = values.params || [];
+            const params = paramsArray.map((item: { key: string; value: string }) => ({
+                [item.key]: item.value
+            }));
 
             const submitData = {
                 ...values,
-                extraParams,
+                params,
             };
 
             await onSubmit(submitData);
-            form.resetFields();
-        } catch (error) {
-            // 错误处理由父组件完成
-            throw error;
+        } catch (error: any) {
+            message.error(error.message || '操作失败');
+        } finally {
+            setTesting(false);
         }
     };
 
@@ -53,7 +102,7 @@ const InstanceForm: React.FC<InstanceFormProps> = ({
                     <Button onClick={onClose}>
                         取消
                     </Button>
-                    <Button type="primary" onClick={handleSubmit}>
+                    <Button type="primary" onClick={handleSubmit} loading={testing}>
                         确定
                     </Button>
                 </Space>
@@ -62,13 +111,6 @@ const InstanceForm: React.FC<InstanceFormProps> = ({
             <Form
                 form={form}
                 layout="vertical"
-                initialValues={editingInstance ? {
-                    ...editingInstance,
-                    extraParams: Object.entries(editingInstance.extraParams || {}).map(([key, value]) => ({
-                        key,
-                        value: String(value),
-                    })),
-                } : undefined}
             >
                 <Form.Item
                     name="name"
@@ -115,36 +157,49 @@ const InstanceForm: React.FC<InstanceFormProps> = ({
                 >
                     <Input.Password placeholder="请输入密码" />
                 </Form.Item>
-                <Form.List name="extraParams">
-                    {(fields, { add, remove }) => (
-                        <>
-                            {fields.map(({ key, name, ...restField }) => (
-                                <Space key={key} style={{ display: 'flex', marginBottom: 8 }} align="baseline">
-                                    <Form.Item
-                                        {...restField}
-                                        name={[name, 'key']}
-                                        rules={[{ required: true, message: '请输入参数名' }]}
-                                    >
-                                        <Input placeholder="参数名" />
-                                    </Form.Item>
-                                    <Form.Item
-                                        {...restField}
-                                        name={[name, 'value']}
-                                        rules={[{ required: true, message: '请输入参数值' }]}
-                                    >
-                                        <Input placeholder="参数值" />
-                                    </Form.Item>
-                                    <MinusCircleOutlined onClick={() => remove(name)} />
-                                </Space>
-                            ))}
-                            <Form.Item>
-                                <Button type="dashed" onClick={() => add()} block icon={<PlusOutlined />}>
-                                    添加参数
-                                </Button>
-                            </Form.Item>
-                        </>
-                    )}
-                </Form.List>
+                <Form.Item>
+                    <Button 
+                        onClick={handleTestConnection} 
+                        loading={testing}
+                    >
+                        测试连接
+                    </Button>
+                </Form.Item>
+                <Form.Item
+                    label="额外参数"
+                    tooltip="可以添加额外的连接参数"
+                >
+                    <Form.List name="params">
+                        {(fields, { add, remove }) => (
+                            <>
+                                {fields.map(({ key, name, ...restField }) => (
+                                    <Space key={key} style={{ display: 'flex', marginBottom: 8 }} align="baseline">
+                                        <Form.Item
+                                            {...restField}
+                                            name={[name, 'key']}
+                                            rules={[{ required: true, message: '请输入参数名' }]}
+                                        >
+                                            <Input placeholder="参数名" />
+                                        </Form.Item>
+                                        <Form.Item
+                                            {...restField}
+                                            name={[name, 'value']}
+                                            rules={[{ required: true, message: '请输入参数值' }]}
+                                        >
+                                            <Input placeholder="参数值" />
+                                        </Form.Item>
+                                        <MinusCircleOutlined onClick={() => remove(name)} />
+                                    </Space>
+                                ))}
+                                <Form.Item>
+                                    <Button type="dashed" onClick={() => add()} block icon={<PlusOutlined />}>
+                                        添加参数
+                                    </Button>
+                                </Form.Item>
+                            </>
+                        )}
+                    </Form.List>
+                </Form.Item>
                 <Form.Item
                     name="remark"
                     label="备注"
