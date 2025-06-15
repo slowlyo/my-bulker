@@ -17,11 +17,23 @@ build:
 	@go build -o $(BUILD_DIR)/$(APP_NAME) $(MAIN_FILE)
 	@echo "Build complete: $(BUILD_DIR)/$(APP_NAME)"
 
+# 构建前端
+.PHONY: build-ui
+build-ui:
+	@echo "Building UI..."
+	@cd ui && pnpm build
+
 # 运行应用
 .PHONY: run
 run:
 	@echo "Running $(APP_NAME)..."
 	@go run $(MAIN_FILE)
+
+# 运行前端
+.PHONY: run-ui
+run-ui:
+	@echo "Running UI..."
+	@cd ui && pnpm dev
 
 # 清理构建产物
 .PHONY: clean
