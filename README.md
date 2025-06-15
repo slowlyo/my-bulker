@@ -1,4 +1,4 @@
-# Poly DB
+# Tenant Tools
 
 Multi-Database Batch SQL Execution and Schema Synchronization.
 

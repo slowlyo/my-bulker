@@ -1,7 +1,7 @@
 package handler
 
 import (
-	"poly-db/internal/pkg/response"
+	"mysql-tenant-tools/internal/pkg/response"
 
 	"github.com/gofiber/fiber/v2"
 )

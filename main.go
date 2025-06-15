@@ -2,7 +2,7 @@ package main
 
 import (
 	"log"
-	"poly-db/internal/bootstrap"
+	"mysql-tenant-tools/internal/bootstrap"
 )
 
 func main() {

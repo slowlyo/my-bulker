@@ -1,4 +1,4 @@
-module poly-db
+module mysql-tenant-tools
 
 go 1.23.9
 

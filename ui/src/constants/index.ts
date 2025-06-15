@@ -1,1 +1,1 @@
-export const DEFAULT_NAME = 'Poly DB';
+export const DEFAULT_NAME = 'Tenant Tools';

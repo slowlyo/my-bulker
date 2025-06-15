@@ -6,7 +6,7 @@ export default defineConfig({
     initialState: {},
     request: {},
     layout: {
-        title: "Poly DB",
+        title: "Tenant Tools",
     },
     routes: [
         {

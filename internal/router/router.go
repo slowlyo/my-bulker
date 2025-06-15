@@ -1,8 +1,8 @@
 package router
 
 import (
-	"poly-db/internal/handler"
-	"poly-db/internal/middleware"
+	"mysql-tenant-tools/internal/handler"
+	"mysql-tenant-tools/internal/middleware"
 
 	"github.com/gofiber/fiber/v2"
 )

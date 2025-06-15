@@ -1,7 +1,7 @@
 package bootstrap
 
 import (
-	"poly-db/internal/router"
+	"mysql-tenant-tools/internal/router"
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/fiber/v2/middleware/logger"
@@ -12,7 +12,7 @@ import (
 func NewApp() *fiber.App {
 	// 创建 Fiber 应用实例
 	app := fiber.New(fiber.Config{
-		AppName: "poly-db v1.0.0",
+		AppName: "mysql-tenant-tools v1.0.0",
 	})
 
 	// 添加全局中间件
