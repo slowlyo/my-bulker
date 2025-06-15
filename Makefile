@@ -54,8 +54,14 @@ tidy:
 .PHONY: help
 help:
 	@echo "Available commands:"
-	@echo "  make build  - Build the application"
-	@echo "  make run    - Run the application"
+	@echo "Backend commands:"
+	@echo "  make build  - Build the backend application"
+	@echo "  make run    - Run the backend service"
 	@echo "  make clean  - Clean build artifacts"
-	@echo "  make tidy   - Tidy dependencies"
+	@echo "  make tidy   - Tidy backend dependencies"
+	@echo ""
+	@echo "Frontend commands:"
+	@echo "  make build-ui  - Build the frontend application"
+	@echo "  make run-ui    - Run the frontend development server"
+	@echo ""
 	@echo "  make help   - Show this help message" 

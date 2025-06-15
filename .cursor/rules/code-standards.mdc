@@ -1,0 +1,50 @@
+---
+description: 
+globs: 
+alwaysApply: false
+---
+# Code Standards
+
+## Project Structure
+
+- All internal packages should be placed under the `internal` directory
+- Business logic should be implemented in the `service` package
+- HTTP handlers should be in the `handler` package
+- Middleware components should be in the `middleware` package
+- Utility functions should be in the `pkg` package
+
+## Naming Conventions
+
+- Use clear, descriptive names for packages, functions, and variables
+- Follow Go naming conventions:
+  - Use camelCase for variables and functions
+  - Use PascalCase for exported types and functions
+  - Use snake_case for file names
+
+## Error Handling
+
+- Always check and handle errors appropriately
+- Use custom error types for domain-specific errors
+- Return meaningful error messages
+
+## Documentation
+
+- Document all exported functions and types
+- Include examples in documentation where appropriate
+- Keep README.md up to date with project changes
+
+## Testing
+
+- Write unit tests for all business logic
+- Include integration tests for API endpoints
+- Maintain good test coverage
+
+## Response Format
+
+All API responses should follow the standard format:
+```json
+{
+    "code": <status_code>,
+    "message": <status_message>
+}
+```

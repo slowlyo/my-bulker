@@ -1,0 +1,86 @@
+---
+description: 
+globs: 
+alwaysApply: false
+---
+# Dependencies Guide
+
+## Backend Dependencies
+
+### Core Framework
+- [Fiber](mdc:https:/github.com/gofiber/fiber) - 高性能 Web 框架
+  - 用于构建 RESTful API
+  - 提供高性能的 HTTP 服务器
+  - 支持中间件和路由
+
+### Utilities
+- [UUID](mdc:https:/github.com/google/uuid) - UUID 生成
+  - 用于生成唯一标识符
+  - 支持多种 UUID 版本
+
+### Performance
+- [Brotli](mdc:https:/github.com/andybalholm/brotli) - 压缩支持
+  - 提供高效的压缩算法
+  - 用于优化网络传输
+- [FastHTTP](mdc:https:/github.com/valyala/fasthttp) - 高性能 HTTP 客户端
+  - 用于发送 HTTP 请求
+  - 提供高性能的 HTTP 客户端实现
+
+## Frontend Dependencies
+
+### Core Framework
+- [UmiJS Max](mdc:https:/umijs.org) - 企业级前端应用框架
+  - 基于 React 的框架
+  - 提供完整的开发工具链
+  - 支持 TypeScript
+  - 内置路由和状态管理
+
+### UI Components
+- [Ant Design](mdc:https:/ant.design) - 企业级 UI 设计语言和 React 组件库
+  - 提供丰富的 UI 组件
+  - 遵循企业级设计规范
+  - 支持主题定制
+- [Ant Design Pro Components](mdc:https:/procomponents.ant.design) - 高级组件库
+  - 提供复杂业务组件
+  - 支持表单、表格等高级功能
+  - 与 Ant Design 完美集成
+
+### Styling
+- [Tailwind CSS](mdc:https:/tailwindcss.com) - 实用优先的 CSS 框架
+  - 提供原子化 CSS 类
+  - 支持响应式设计
+  - 高度可定制
+
+### Development Tools
+- [TypeScript](mdc:https:/www.typescriptlang.org) - JavaScript 的超集
+  - 提供类型系统
+  - 增强代码可维护性
+  - 提供更好的开发体验
+
+## Version Management
+
+### Backend
+- Go 1.21 或更高版本
+- 使用 Go modules 管理依赖
+- 依赖版本在 [go.mod](mdc:go.mod) 中定义
+
+### Frontend
+- Node.js 16 或更高版本
+- 使用 pnpm 管理依赖
+- 依赖版本在 [ui/package.json](mdc:ui/package.json) 中定义
+
+## Development Environment
+
+### Required Tools
+- Go 开发环境
+- Node.js 运行环境
+- pnpm 包管理器
+- Make 工具
+
+### IDE Support
+- VS Code 推荐插件：
+  - Go
+  - TypeScript
+  - Tailwind CSS IntelliSense
+  - ESLint
+  - Prettier

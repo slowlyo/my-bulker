@@ -1,0 +1,31 @@
+---
+description: 
+globs: 
+alwaysApply: false
+---
+# Frontend Project Structure
+
+The frontend project is built with UmiJS and TypeScript, located in the `ui` directory.
+
+## Core Files
+
+- [ui/.umirc.ts](mdc:ui/.umirc.ts) - UmiJS configuration
+- [ui/package.json](mdc:ui/package.json) - Project dependencies and scripts
+- [ui/tsconfig.json](mdc:ui/tsconfig.json) - TypeScript configuration
+- [ui/tailwind.config.js](mdc:ui/tailwind.config.js) - Tailwind CSS configuration
+- [ui/tailwind.css](mdc:ui/tailwind.css) - Global Tailwind styles
+
+## Source Code
+
+- [ui/src](mdc:ui/src) - Main source code directory
+  - Components
+  - Pages
+  - Services
+  - Utils
+  - Types
+
+## Development Tools
+
+- [ui/.npmrc](mdc:ui/.npmrc) - NPM configuration
+- [ui/.gitignore](mdc:ui/.gitignore) - Git ignore rules
+- [ui/typings.d.ts](mdc:ui/typings.d.ts) - TypeScript type definitions

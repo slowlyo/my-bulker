@@ -1,0 +1,59 @@
+---
+description:
+globs:
+alwaysApply: false
+---
+# Frontend Development Standards
+
+## Technology Stack
+
+- Framework: UmiJS
+- Language: TypeScript
+- Styling: Tailwind CSS
+- Package Manager: pnpm
+
+## Code Organization
+
+### Directory Structure
+- `src/components` - Reusable UI components
+- `src/pages` - Page components and routes
+- `src/services` - API service functions
+- `src/utils` - Utility functions
+- `src/types` - TypeScript type definitions
+
+### Component Guidelines
+- Use functional components with hooks
+- Implement proper TypeScript types for props
+- Follow atomic design principles
+- Keep components small and focused
+- Use Tailwind CSS for styling
+
+### State Management
+- Use React hooks for local state
+- Implement proper error handling
+- Follow immutable state patterns
+- Use TypeScript for type safety
+
+### API Integration
+- Centralize API calls in service files
+- Use TypeScript interfaces for API responses
+- Implement proper error handling
+- Use environment variables for API endpoints
+
+### Styling Standards
+- Use Tailwind CSS utility classes
+- Follow mobile-first responsive design
+- Maintain consistent spacing and typography
+- Use CSS variables for theme values
+
+### Testing
+- Write unit tests for components
+- Test API integration
+- Implement E2E tests for critical flows
+- Maintain good test coverage
+
+### Performance
+- Implement code splitting
+- Optimize bundle size
+- Use proper caching strategies
+- Monitor and optimize render performance

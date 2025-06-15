@@ -1,0 +1,34 @@
+---
+description: 
+globs: 
+alwaysApply: false
+---
+# Project Structure Guide
+
+This is a Go-based batch SQL execution and schema synchronization tool with a well-organized structure.
+
+## Main Components
+
+- [main.go](mdc:main.go) - Application entry point
+- [Makefile](mdc:Makefile) - Build and development commands
+
+## Internal Packages
+
+The `internal` directory contains all the core application code:
+
+- [internal/bootstrap](mdc:internal/bootstrap) - Application initialization
+- [internal/handler](mdc:internal/handler) - HTTP request handlers
+- [internal/middleware](mdc:internal/middleware) - HTTP middleware components
+- [internal/pkg](mdc:internal/pkg) - Internal utility packages
+  - [internal/pkg/response](mdc:internal/pkg/response) - Standard response handling
+- [internal/router](mdc:internal/router) - Route registration and configuration
+- [internal/service](mdc:internal/service) - Business logic implementation
+
+## Build Artifacts
+
+- [build](mdc:build) - Directory for build outputs
+
+## Documentation
+
+- [README.md](mdc:README.md) - Project documentation and setup instructions
+
