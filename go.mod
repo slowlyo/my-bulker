@@ -1,4 +1,4 @@
-module mysql-tenant-tools
+module mysql-batch-tools
 
 go 1.23.9
 

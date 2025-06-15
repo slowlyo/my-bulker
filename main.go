@@ -2,7 +2,7 @@ package main
 
 import (
 	"log"
-	"mysql-tenant-tools/internal/bootstrap"
+	"mysql-batch-tools/internal/bootstrap"
 )
 
 func main() {

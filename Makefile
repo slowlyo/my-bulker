@@ -1,5 +1,5 @@
 # 应用名称
-APP_NAME = mysql-tenant-tools
+APP_NAME = mysql-batch-tools
 
 # 构建参数
 BUILD_DIR = build

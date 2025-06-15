@@ -1,8 +1,8 @@
 package router
 
 import (
-	"mysql-tenant-tools/internal/handler"
-	"mysql-tenant-tools/internal/middleware"
+	"mysql-batch-tools/internal/handler"
+	"mysql-batch-tools/internal/middleware"
 
 	"github.com/gofiber/fiber/v2"
 )

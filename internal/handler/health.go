@@ -1,7 +1,7 @@
 package handler
 
 import (
-	"mysql-tenant-tools/internal/pkg/response"
+	"mysql-batch-tools/internal/pkg/response"
 
 	"github.com/gofiber/fiber/v2"
 )

@@ -6,7 +6,7 @@ export default defineConfig({
     initialState: {},
     request: {},
     layout: {
-        title: "Tenant Tools",
+        title: "Batch Tools",
     },
     routes: [
         {

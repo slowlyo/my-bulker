@@ -1,1 +1,1 @@
-export const DEFAULT_NAME = 'Tenant Tools';
+export const DEFAULT_NAME = 'Batch Tools';
