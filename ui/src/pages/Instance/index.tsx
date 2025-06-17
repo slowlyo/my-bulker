@@ -128,8 +128,9 @@ const InstancePage: React.FC = () => {
     };
 
     return (
-        <PageContainer>
+        <PageContainer ghost>
             <ProTable<InstanceInfo>
+                cardBordered
                 actionRef={actionRef}
                 rowKey="id"
                 search={{
