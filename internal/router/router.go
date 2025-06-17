@@ -12,6 +12,7 @@ func Register(app *fiber.App) {
 	// 初始化处理器
 	health := handler.NewHealth()
 	instanceHandler := handler.NewInstanceHandler()
+	databaseHandler := handler.NewDatabaseHandler()
 
 	// 全局中间件
 	app.Use(middleware.CORS())
@@ -30,7 +31,14 @@ func Register(app *fiber.App) {
 			instances.Delete("/:id", instanceHandler.Delete)                   // 删除实例
 			instances.Get("/:id", instanceHandler.Get)                         // 获取实例
 			instances.Get("", instanceHandler.List)                            // 获取实例列表
+			instances.Get("/options", instanceHandler.Options)                 // 获取实例选项
 			instances.Post("/test-connection", instanceHandler.TestConnection) // 测试连接
+		}
+
+		// 数据库管理
+		databases := api.Group("/databases")
+		{
+			databases.Get("", databaseHandler.List) // 获取数据库列表
 		}
 	}
 }

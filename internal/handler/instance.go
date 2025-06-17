@@ -93,17 +93,14 @@ func (h *InstanceHandler) Get(c *fiber.Ctx) error {
 
 // List 获取实例列表
 func (h *InstanceHandler) List(c *fiber.Ctx) error {
-	page, _ := strconv.Atoi(c.Query("page", "1"))
-	pageSize, _ := strconv.Atoi(c.Query("pageSize", "10"))
+	var req model.InstanceListRequest
 
-	if page < 1 {
-		page = 1
-	}
-	if pageSize < 1 || pageSize > 100 {
-		pageSize = 10
+	// 解析查询参数
+	if err := c.QueryParser(&req); err != nil {
+		return response.Invalid(c, "无效的查询参数")
 	}
 
-	list, err := h.service.List(page, pageSize)
+	list, err := h.service.List(&req)
 	if err != nil {
 		return response.Internal(c, "获取实例列表失败")
 	}
@@ -129,4 +126,14 @@ func (h *InstanceHandler) TestConnection(c *fiber.Ctx) error {
 	}
 
 	return response.Success(c, nil)
+}
+
+// Options 获取实例选项
+func (h *InstanceHandler) Options(c *fiber.Ctx) error {
+	options, err := h.service.GetOptions()
+	if err != nil {
+		return response.Internal(c, "获取实例选项失败")
+	}
+
+	return response.Success(c, options)
 }

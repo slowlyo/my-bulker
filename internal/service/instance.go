@@ -118,17 +118,41 @@ func (s *InstanceService) Get(id uint) (*model.Instance, error) {
 }
 
 // List 获取实例列表
-func (s *InstanceService) List(page, pageSize int) (*model.InstanceListResponse, error) {
+func (s *InstanceService) List(req *model.InstanceListRequest) (*model.InstanceListResponse, error) {
 	var total int64
 	var instances []model.Instance
 
+	// 验证并设置分页默认值
+	req.ValidateAndSetDefaults()
+
+	// 构建查询条件
+	query := database.GetDB().Model(&model.Instance{})
+
+	// 添加筛选条件
+	if req.Name != "" {
+		query = query.Where("name LIKE ?", "%"+req.Name+"%")
+	}
+	if req.Host != "" {
+		query = query.Where("host LIKE ?", "%"+req.Host+"%")
+	}
+	if req.Username != "" {
+		query = query.Where("username LIKE ?", "%"+req.Username+"%")
+	}
+	if req.Remark != "" {
+		query = query.Where("remark LIKE ?", "%"+req.Remark+"%")
+	}
+
 	// 获取总数
-	if err := database.GetDB().Model(&model.Instance{}).Count(&total).Error; err != nil {
+	if err := query.Count(&total).Error; err != nil {
 		return nil, err
 	}
 
 	// 获取分页数据
-	if err := database.GetDB().Offset((page - 1) * pageSize).Limit(pageSize).Find(&instances).Error; err != nil {
+	if err := query.
+		Offset(req.GetOffset()).
+		Limit(req.GetLimit()).
+		Order("updated_at DESC").
+		Find(&instances).Error; err != nil {
 		return nil, err
 	}
 
@@ -199,4 +223,28 @@ func (s *InstanceService) getMySQLVersion(host string, port int, username, passw
 	}
 
 	return version, nil
+}
+
+// GetOptions 获取实例选项列表
+func (s *InstanceService) GetOptions() ([]model.Option, error) {
+	var instances []model.Instance
+
+	// 获取所有实例，只选择需要的字段
+	if err := database.GetDB().
+		Select("id, name").
+		Order("name ASC").
+		Find(&instances).Error; err != nil {
+		return nil, err
+	}
+
+	// 转换为选项格式
+	options := make([]model.Option, len(instances))
+	for i, instance := range instances {
+		options[i] = model.Option{
+			Value: instance.ID,
+			Label: instance.Name,
+		}
+	}
+
+	return options, nil
 }
