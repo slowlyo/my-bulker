@@ -5,7 +5,7 @@ import { useRef, useState } from 'react';
 import { addInstance, deleteInstance, modifyInstance, queryInstanceList } from '@/services/instance/InstanceController';
 import InstanceForm from './components/InstanceForm';
 import { InstanceInfo } from '@/services/instance/typings';
-import { EditOutlined, DeleteOutlined } from '@ant-design/icons';
+import { EditOutlined, DeleteOutlined, PlusOutlined } from '@ant-design/icons';
 
 const InstancePage: React.FC = () => {
     const actionRef = useRef<ActionType>();
@@ -21,14 +21,14 @@ const InstancePage: React.FC = () => {
             render: (text) => <strong>{text}</strong>,
         },
         {
-            title: '主机地址',
-            dataIndex: 'host',
+            title: '用户名',
+            dataIndex: 'username',
             copyable: true,
             ellipsis: true,
         },
         {
-            title: '用户名',
-            dataIndex: 'username',
+            title: '主机地址',
+            dataIndex: 'host',
             copyable: true,
             ellipsis: true,
         },
@@ -144,8 +144,9 @@ const InstancePage: React.FC = () => {
                             setEditingInstance(null);
                             setDrawerVisible(true);
                         }}
+                        icon={<PlusOutlined />}
                     >
-                        新建
+                        新增实例
                     </Button>,
                 ]}
                 request={async (params) => {
