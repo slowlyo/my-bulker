@@ -70,7 +70,16 @@ func Init() error {
 		}
 
 		// 自动迁移数据库结构
-		if err := db.AutoMigrate(&model.Instance{}); err != nil {
+		// 注意：按照依赖关系顺序进行迁移
+		if err := db.AutoMigrate(
+			&model.Instance{},           // 实例表（无依赖）
+			&model.Database{},           // 数据库表（依赖 Instance）
+			&model.Table{},              // 表信息表（依赖 Database）
+			&model.TableIndex{},         // 表索引表（依赖 Table）
+			&model.QueryTask{},          // 查询任务表（无依赖）
+			&model.QueryTaskSQL{},       // 查询任务SQL表（依赖 QueryTask）
+			&model.QueryTaskExecution{}, // 任务执行表（依赖 QueryTask、QueryTaskSQL、Instance）
+		); err != nil {
 			initErr = fmt.Errorf("failed to migrate database: %v", err)
 			return
 		}
