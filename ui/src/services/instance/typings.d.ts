@@ -27,7 +27,6 @@ export interface InstanceInfo {
   host: string;
   port: number;
   username: string;
-  password: string;
   version: string;
   params: Array<Record<string, string>>;
   remark: string;
@@ -40,7 +39,7 @@ export interface InstanceInfoVO {
   host: string;
   port: number;
   username: string;
-  password: string;
+  password?: string;
   params: Array<Record<string, string>>;
   remark: string;
 } 

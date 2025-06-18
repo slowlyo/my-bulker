@@ -17,7 +17,7 @@ type UpdateInstanceRequest struct {
 	Host     string         `json:"host" validate:"required"`     // 主机地址
 	Port     int            `json:"port" validate:"required"`     // 端口
 	Username string         `json:"username" validate:"required"` // 用户名
-	Password string         `json:"password" validate:"required"` // 密码
+	Password string         `json:"password"`                     // 密码（可选）
 	Params   InstanceParams `json:"params"`                       // 额外参数
 	Remark   string         `json:"remark"`                       // 备注
 }
@@ -31,7 +31,6 @@ type InstanceResponse struct {
 	Host      string         `json:"host"`       // 主机地址
 	Port      int            `json:"port"`       // 端口
 	Username  string         `json:"username"`   // 用户名
-	Password  string         `json:"password"`   // 密码
 	Version   string         `json:"version"`    // 数据库版本
 	Params    InstanceParams `json:"params"`     // 额外参数
 	Remark    string         `json:"remark"`     // 备注

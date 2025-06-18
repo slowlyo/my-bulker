@@ -88,7 +88,7 @@ func (h *InstanceHandler) Get(c *fiber.Ctx) error {
 		return response.Internal(c, "获取实例失败")
 	}
 
-	return response.Success(c, instance)
+	return response.Custom(c, response.CodeSuccess, "获取实例成功", instance)
 }
 
 // List 获取实例列表

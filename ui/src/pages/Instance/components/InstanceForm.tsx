@@ -24,11 +24,15 @@ const InstanceForm: React.FC<InstanceFormProps> = ({
     useEffect(() => {
         if (visible) {
             form.setFieldsValue(editingInstance ? {
-                ...editingInstance,
+                name: editingInstance.name,
+                host: editingInstance.host,
+                port: editingInstance.port,
+                username: editingInstance.username,
                 params: editingInstance.params.map(param => {
                     const [[key, value]] = Object.entries(param);
                     return { key, value };
-                })
+                }),
+                remark: editingInstance.remark
             } : {
                 port: 3306,
                 params: []
@@ -41,6 +45,13 @@ const InstanceForm: React.FC<InstanceFormProps> = ({
     const handleTestConnection = async () => {
         try {
             const values = await form.validateFields(['host', 'port', 'username', 'password']);
+            
+            // 在编辑模式下，如果密码为空，提示用户需要输入密码
+            if (editingInstance && !values.password) {
+                message.warning('请输入密码以测试连接');
+                return;
+            }
+            
             setTesting(true);
             const res = await testConnection(values);
             if (res.code === 200) {
@@ -58,19 +69,23 @@ const InstanceForm: React.FC<InstanceFormProps> = ({
     const handleSubmit = async () => {
         try {
             const values = await form.validateFields();
-            // 先测试连接
-            setTesting(true);
-            const testRes = await testConnection({
-                host: values.host,
-                port: values.port,
-                username: values.username,
-                password: values.password,
-            });
-            if (testRes.code !== 200) {
-                message.error(testRes.message || '连接测试失败');
-                return;
+            
+            // 在编辑模式下，如果密码为空，则跳过连接测试
+            if (!editingInstance || values.password) {
+                // 先测试连接
+                setTesting(true);
+                const testRes = await testConnection({
+                    host: values.host,
+                    port: values.port,
+                    username: values.username,
+                    password: values.password,
+                });
+                if (testRes.code !== 200) {
+                    message.error(testRes.message || '连接测试失败');
+                    return;
+                }
+                setTesting(false);
             }
-            setTesting(false);
 
             // 将 params 数组转换为对象格式
             const paramsArray = values.params || [];
@@ -78,10 +93,16 @@ const InstanceForm: React.FC<InstanceFormProps> = ({
                 [item.key]: item.value
             }));
 
+            // 在编辑模式下，如果密码为空，则不包含密码字段
             const submitData = {
                 ...values,
                 params,
             };
+            
+            // 在编辑模式下，如果密码为空，则删除密码字段
+            if (editingInstance && !values.password) {
+                delete submitData.password;
+            }
 
             await onSubmit(submitData);
         } catch (error: any) {
@@ -153,9 +174,15 @@ const InstanceForm: React.FC<InstanceFormProps> = ({
                 <Form.Item
                     name="password"
                     label="密码"
-                    rules={[{ required: true, message: '请输入密码' }]}
+                    rules={[
+                        { 
+                            required: !editingInstance, 
+                            message: '请输入密码' 
+                        }
+                    ]}
+                    tooltip={editingInstance ? "留空则不修改密码" : undefined}
                 >
-                    <Input.Password placeholder="请输入密码" />
+                    <Input.Password placeholder={editingInstance ? "留空则不修改密码" : "请输入密码"} />
                 </Form.Item>
                 <Form.Item>
                     <Button 

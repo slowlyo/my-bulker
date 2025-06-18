@@ -78,10 +78,16 @@ func (s *InstanceService) Update(id uint, req *model.UpdateInstanceRequest) (*mo
 		return nil, err
 	}
 
+	// 确定要使用的密码（如果请求中密码为空，则使用原密码）
+	passwordToUse := req.Password
+	if passwordToUse == "" {
+		passwordToUse = instance.Password
+	}
+
 	// 如果连接信息发生变化，重新获取版本
 	if instance.Host != req.Host || instance.Port != req.Port ||
-		instance.Username != req.Username || instance.Password != req.Password {
-		version, err := s.getMySQLVersion(req.Host, req.Port, req.Username, req.Password)
+		instance.Username != req.Username || instance.Password != passwordToUse {
+		version, err := s.getMySQLVersion(req.Host, req.Port, req.Username, passwordToUse)
 		if err != nil {
 			return nil, err
 		}
@@ -92,7 +98,10 @@ func (s *InstanceService) Update(id uint, req *model.UpdateInstanceRequest) (*mo
 	instance.Host = req.Host
 	instance.Port = req.Port
 	instance.Username = req.Username
-	instance.Password = req.Password
+	// 只有当密码不为空时才更新密码
+	if req.Password != "" {
+		instance.Password = req.Password
+	}
 	instance.Params = req.Params
 	instance.Remark = req.Remark
 
@@ -109,12 +118,25 @@ func (s *InstanceService) Delete(id uint) error {
 }
 
 // Get 获取实例
-func (s *InstanceService) Get(id uint) (*model.Instance, error) {
+func (s *InstanceService) Get(id uint) (*model.InstanceResponse, error) {
 	instance := &model.Instance{}
 	if err := database.GetDB().First(instance, id).Error; err != nil {
 		return nil, err
 	}
-	return instance, nil
+
+	// 转换为响应格式
+	return &model.InstanceResponse{
+		ID:        instance.ID,
+		CreatedAt: instance.CreatedAt.Format(time.RFC3339),
+		UpdatedAt: instance.UpdatedAt.Format(time.RFC3339),
+		Name:      instance.Name,
+		Host:      instance.Host,
+		Port:      instance.Port,
+		Username:  instance.Username,
+		Version:   instance.Version,
+		Params:    instance.Params,
+		Remark:    instance.Remark,
+	}, nil
 }
 
 // List 获取实例列表
@@ -167,7 +189,6 @@ func (s *InstanceService) List(req *model.InstanceListRequest) (*model.InstanceL
 			Host:      instance.Host,
 			Port:      instance.Port,
 			Username:  instance.Username,
-			Password:  instance.Password,
 			Version:   instance.Version,
 			Params:    instance.Params,
 			Remark:    instance.Remark,
