@@ -50,3 +50,8 @@ type InstanceListResponse struct {
 	Total int64              `json:"total"` // 总数
 	Items []InstanceResponse `json:"items"` // 列表项
 }
+
+// SyncDatabasesRequest 同步数据库请求
+type SyncDatabasesRequest struct {
+	InstanceIDs []uint `json:"instance_ids" validate:"required,min=1"` // 实例ID列表
+}

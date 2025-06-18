@@ -1,16 +1,18 @@
 import { PageContainer, ProTable } from '@ant-design/pro-components';
 import type { ActionType, ProColumns } from '@ant-design/pro-components';
-import { Button, Popconfirm, message, Space, Tag } from 'antd';
+import { Button, Popconfirm, message, Space, Tag, Spin } from 'antd';
 import { useRef, useState } from 'react';
-import { addInstance, deleteInstance, modifyInstance, queryInstanceList } from '@/services/instance/InstanceController';
+import { addInstance, deleteInstance, modifyInstance, queryInstanceList, syncDatabases } from '@/services/instance/InstanceController';
 import InstanceForm from './components/InstanceForm';
 import { InstanceInfo } from '@/services/instance/typings';
-import { EditOutlined, DeleteOutlined, PlusOutlined } from '@ant-design/icons';
+import { EditOutlined, DeleteOutlined, PlusOutlined, SyncOutlined, LoadingOutlined } from '@ant-design/icons';
 
 const InstancePage: React.FC = () => {
     const actionRef = useRef<ActionType>();
     const [drawerVisible, setDrawerVisible] = useState(false);
     const [editingInstance, setEditingInstance] = useState<InstanceInfo | null>(null);
+    const [selectedRows, setSelectedRows] = useState<InstanceInfo[]>([]);
+    const [syncing, setSyncing] = useState(false);
 
     const columns: ProColumns<InstanceInfo>[] = [
         {
@@ -37,7 +39,7 @@ const InstancePage: React.FC = () => {
             dataIndex: 'version',
             ellipsis: true,
             hideInSearch: true,
-            render: (text) => <Tag color="blue">{text}</Tag>,
+            render: (text) => <Tag>{text}</Tag>,
         },
         {
             title: '备注',
@@ -127,6 +129,29 @@ const InstancePage: React.FC = () => {
         }
     };
 
+    const handleSyncDatabases = async () => {
+        if (selectedRows.length === 0) {
+            message.warning('请选择要同步的实例');
+            return;
+        }
+
+        setSyncing(true);
+        try {
+            const instanceIds = selectedRows.map(row => row.id);
+            const res = await syncDatabases({ instance_ids: instanceIds });
+            if (res.code === 200) {
+                message.success(res.message || '同步成功');
+                actionRef.current?.reload();
+            } else {
+                message.error(res.message || '同步失败');
+            }
+        } catch (error: any) {
+            message.error(error.message || '同步失败');
+        } finally {
+            setSyncing(false);
+        }
+    };
+
     return (
         <PageContainer ghost>
             <ProTable<InstanceInfo>
@@ -136,7 +161,21 @@ const InstancePage: React.FC = () => {
                 search={{
                     labelWidth: 120,
                 }}
+                rowSelection={{
+                    onChange: (_, selectedRows) => {
+                        setSelectedRows(selectedRows);
+                    },
+                }}
                 toolBarRender={() => [
+                    <Button
+                        key="sync"
+                        type="primary"
+                        onClick={handleSyncDatabases}
+                        icon={syncing ? <LoadingOutlined /> : <SyncOutlined />}
+                        disabled={selectedRows.length === 0 || syncing}
+                    >
+                        {syncing ? '同步中...' : '同步数据库'}
+                    </Button>,
                     <Button
                         key="button"
                         type="primary"

@@ -1,36 +1,37 @@
 package service
 
 import (
+	"context"
+	"time"
+
 	"mysql-batch-tools/internal/model"
-	"mysql-batch-tools/internal/pkg/database"
+
+	"gorm.io/gorm"
 )
 
 // DatabaseService 数据库服务
-type DatabaseService struct{}
+type DatabaseService struct {
+	db *gorm.DB
+}
 
 // NewDatabaseService 创建数据库服务
-func NewDatabaseService() *DatabaseService {
-	return &DatabaseService{}
+func NewDatabaseService(db *gorm.DB) *DatabaseService {
+	return &DatabaseService{db: db}
 }
 
 // List 获取数据库列表
-func (s *DatabaseService) List(req *model.DatabaseListRequest) (*model.DatabaseListResponse, error) {
+func (s *DatabaseService) List(ctx context.Context, req *model.DatabaseListRequest) (*model.DatabaseListResponse, error) {
 	var total int64
 	var databases []model.Database
 
-	// 验证并设置分页默认值
-	req.ValidateAndSetDefaults()
+	query := s.db.Model(&model.Database{}).Preload("Instance")
 
-	// 构建查询条件
-	query := database.GetDB().Model(&model.Database{}).
-		Joins("LEFT JOIN instances ON databases.instance_id = instances.id")
-
-	// 添加筛选条件
+	// 应用过滤条件
 	if req.Name != "" {
-		query = query.Where("databases.name LIKE ?", "%"+req.Name+"%")
+		query = query.Where("name LIKE ?", "%"+req.Name+"%")
 	}
 	if req.InstanceID > 0 {
-		query = query.Where("databases.instance_id = ?", req.InstanceID)
+		query = query.Where("instance_id = ?", req.InstanceID)
 	}
 
 	// 获取总数
@@ -39,12 +40,7 @@ func (s *DatabaseService) List(req *model.DatabaseListRequest) (*model.DatabaseL
 	}
 
 	// 获取分页数据
-	if err := query.
-		Select("databases.*, instances.name as instance_name").
-		Offset(req.GetOffset()).
-		Limit(req.GetLimit()).
-		Order("databases.updated_at DESC").
-		Find(&databases).Error; err != nil {
+	if err := query.Offset(req.Pagination.GetOffset()).Limit(req.Pagination.GetLimit()).Find(&databases).Error; err != nil {
 		return nil, err
 	}
 
@@ -52,18 +48,54 @@ func (s *DatabaseService) List(req *model.DatabaseListRequest) (*model.DatabaseL
 	items := make([]model.DatabaseResponse, len(databases))
 	for i, db := range databases {
 		items[i] = model.DatabaseResponse{
-			ID:           db.ID,
-			Name:         db.Name,
-			InstanceID:   db.InstanceID,
-			InstanceName: db.Instance.Name, // 通过关联获取实例名称
-			Size:         db.Size,
-			TableCount:   db.TableCount,
-			UpdatedAt:    db.UpdatedAt,
+			ID:                db.ID,
+			CreatedAt:         db.CreatedAt.Format(time.RFC3339),
+			UpdatedAt:         db.UpdatedAt.Format(time.RFC3339),
+			Name:              db.Name,
+			InstanceID:        db.InstanceID,
+			CharacterSet:      db.CharacterSet,
+			Collation:         db.Collation,
+			Size:              db.Size,
+			TableCount:        db.TableCount,
+			MaxConnections:    db.MaxConnections,
+			ConnectionTimeout: db.ConnectionTimeout,
+			Instance: model.InstanceBasicInfo{
+				ID:   db.Instance.ID,
+				Name: db.Instance.Name,
+			},
 		}
 	}
 
 	return &model.DatabaseListResponse{
 		Total: total,
 		Items: items,
+	}, nil
+}
+
+// Get 获取数据库详情
+func (s *DatabaseService) Get(ctx context.Context, id uint) (*model.DatabaseResponse, error) {
+	var db model.Database
+	if err := s.db.Preload("Instance").Preload("Tables").First(&db, id).Error; err != nil {
+		return nil, err
+	}
+
+	// 转换为响应格式
+	return &model.DatabaseResponse{
+		ID:                db.ID,
+		CreatedAt:         db.CreatedAt.Format(time.RFC3339),
+		UpdatedAt:         db.UpdatedAt.Format(time.RFC3339),
+		Name:              db.Name,
+		InstanceID:        db.InstanceID,
+		CharacterSet:      db.CharacterSet,
+		Collation:         db.Collation,
+		Size:              db.Size,
+		TableCount:        db.TableCount,
+		MaxConnections:    db.MaxConnections,
+		ConnectionTimeout: db.ConnectionTimeout,
+		Instance: model.InstanceBasicInfo{
+			ID:   db.Instance.ID,
+			Name: db.Instance.Name,
+		},
+		Tables: db.Tables,
 	}, nil
 }

@@ -13,6 +13,7 @@ func Register(app *fiber.App) {
 	health := handler.NewHealth()
 	instanceHandler := handler.NewInstanceHandler()
 	databaseHandler := handler.NewDatabaseHandler()
+	tableHandler := handler.NewTableHandler()
 
 	// 全局中间件
 	app.Use(middleware.CORS())
@@ -26,19 +27,27 @@ func Register(app *fiber.App) {
 		// 实例管理
 		instances := api.Group("/instances")
 		{
+			instances.Get("/options", instanceHandler.Options)                 // 获取实例选项
+			instances.Post("/test-connection", instanceHandler.TestConnection) // 测试连接
+			instances.Post("/sync-databases", instanceHandler.SyncDatabases)   // 同步数据库
 			instances.Post("", instanceHandler.Create)                         // 创建实例
 			instances.Put("/:id", instanceHandler.Update)                      // 更新实例
 			instances.Delete("/:id", instanceHandler.Delete)                   // 删除实例
 			instances.Get("/:id", instanceHandler.Get)                         // 获取实例
 			instances.Get("", instanceHandler.List)                            // 获取实例列表
-			instances.Get("/options", instanceHandler.Options)                 // 获取实例选项
-			instances.Post("/test-connection", instanceHandler.TestConnection) // 测试连接
 		}
 
 		// 数据库管理
 		databases := api.Group("/databases")
 		{
-			databases.Get("", databaseHandler.List) // 获取数据库列表
+			databases.Get("", databaseHandler.List)    // 获取数据库列表
+			databases.Get("/:id", databaseHandler.Get) // 获取数据库详情
+		}
+
+		// 表管理
+		tables := api.Group("/tables")
+		{
+			tables.Get("/:id", tableHandler.Get) // 获取表详情
 		}
 	}
 }

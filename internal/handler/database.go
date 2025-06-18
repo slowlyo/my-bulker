@@ -2,6 +2,7 @@ package handler
 
 import (
 	"mysql-batch-tools/internal/model"
+	"mysql-batch-tools/internal/pkg/database"
 	"mysql-batch-tools/internal/pkg/response"
 	"mysql-batch-tools/internal/service"
 	"strconv"
@@ -17,7 +18,7 @@ type DatabaseHandler struct {
 // NewDatabaseHandler 创建数据库处理器
 func NewDatabaseHandler() *DatabaseHandler {
 	return &DatabaseHandler{
-		service: service.NewDatabaseService(),
+		service: service.NewDatabaseService(database.GetDB()),
 	}
 }
 
@@ -37,10 +38,25 @@ func (h *DatabaseHandler) List(c *fiber.Ctx) error {
 		}
 	}
 
-	list, err := h.service.List(&req)
+	list, err := h.service.List(c.Context(), &req)
 	if err != nil {
 		return response.Internal(c, "获取数据库列表失败")
 	}
 
 	return response.Success(c, list)
+}
+
+// Get 获取数据库详情
+func (h *DatabaseHandler) Get(c *fiber.Ctx) error {
+	id, err := strconv.ParseUint(c.Params("id"), 10, 32)
+	if err != nil {
+		return response.Invalid(c, "无效的数据库ID")
+	}
+
+	db, err := h.service.Get(c.Context(), uint(id))
+	if err != nil {
+		return response.Internal(c, "获取数据库详情失败")
+	}
+
+	return response.Success(c, db)
 }

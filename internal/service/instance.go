@@ -1,14 +1,19 @@
 package service
 
 import (
+	"context"
 	"database/sql"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"mysql-batch-tools/internal/model"
 	"mysql-batch-tools/internal/pkg/database"
+	"strings"
 	"time"
 
 	_ "github.com/go-sql-driver/mysql"
+	"golang.org/x/sync/errgroup"
+	"gorm.io/gorm"
 )
 
 var (
@@ -201,19 +206,307 @@ func (s *InstanceService) List(req *model.InstanceListRequest) (*model.InstanceL
 	}, nil
 }
 
-// TestConnection 测试数据库连接
-func (s *InstanceService) TestConnection(host string, port int, username, password string) error {
+// getMySQLConnection 获取 MySQL 数据库连接
+func (s *InstanceService) getMySQLConnection(instance *model.Instance) (*sql.DB, error) {
 	dsn := fmt.Sprintf("%s:%s@tcp(%s:%d)/?charset=utf8mb4&parseTime=True&loc=Local",
-		username, password, host, port)
+		instance.Username, instance.Password, instance.Host, instance.Port)
 
 	db, err := sql.Open("mysql", dsn)
 	if err != nil {
-		return fmt.Errorf("%w: %v", ErrConnectionFailed, err)
+		return nil, fmt.Errorf("连接数据库失败 [%s]: %v", instance.Name, err)
 	}
-	defer db.Close()
 
 	// 设置连接超时
 	db.SetConnMaxLifetime(time.Second * 5)
+
+	return db, nil
+}
+
+// SyncDatabases 同步数据库信息
+func (s *InstanceService) SyncDatabases(instanceIDs []uint) error {
+	// 获取所有指定的实例
+	var instances []model.Instance
+	if err := database.GetDB().Find(&instances, instanceIDs).Error; err != nil {
+		return fmt.Errorf("获取实例失败: %v", err)
+	}
+
+	// 使用 errgroup 进行并发处理
+	g, _ := errgroup.WithContext(context.Background())
+	sem := make(chan struct{}, 5) // 限制最大并发数为5
+
+	for _, instance := range instances {
+		instance := instance // 创建副本避免闭包问题
+		g.Go(func() error {
+			sem <- struct{}{}        // 获取信号量
+			defer func() { <-sem }() // 释放信号量
+
+			// 连接数据库
+			db, err := s.getMySQLConnection(&instance)
+			if err != nil {
+				return err
+			}
+			defer db.Close()
+
+			// 开始事务
+			tx := database.GetDB().Begin()
+			if tx.Error != nil {
+				return fmt.Errorf("开始事务失败 [%s]: %v", instance.Name, tx.Error)
+			}
+
+			// 同步数据库信息
+			if err := s.syncDatabases(tx, db, instance.ID); err != nil {
+				tx.Rollback()
+				return fmt.Errorf("同步数据库失败 [%s]: %v", instance.Name, err)
+			}
+
+			// 提交事务
+			if err := tx.Commit().Error; err != nil {
+				return fmt.Errorf("提交事务失败 [%s]: %v", instance.Name, err)
+			}
+
+			return nil
+		})
+	}
+
+	// 等待所有任务完成
+	if err := g.Wait(); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// syncDatabases 同步单个实例的数据库信息
+func (s *InstanceService) syncDatabases(tx *gorm.DB, db *sql.DB, instanceID uint) error {
+	// 一次性获取所有数据库信息
+	rows, err := db.Query(`
+		SELECT 
+			s.SCHEMA_NAME,
+			s.DEFAULT_CHARACTER_SET_NAME,
+			s.DEFAULT_COLLATION_NAME,
+			COALESCE(SUM(t.data_length + t.index_length), 0) as size,
+			COUNT(t.TABLE_NAME) as table_count
+		FROM information_schema.SCHEMATA s
+		LEFT JOIN information_schema.TABLES t ON s.SCHEMA_NAME = t.TABLE_SCHEMA
+		WHERE s.SCHEMA_NAME NOT IN ('information_schema', 'performance_schema', 'mysql', 'sys')
+		GROUP BY s.SCHEMA_NAME, s.DEFAULT_CHARACTER_SET_NAME, s.DEFAULT_COLLATION_NAME
+	`)
+	if err != nil {
+		return err
+	}
+	defer rows.Close()
+
+	// 批量准备数据库记录
+	var databases []model.Database
+	for rows.Next() {
+		var dbName, charset, collation string
+		var size int64
+		var tableCount int
+		if err := rows.Scan(&dbName, &charset, &collation, &size, &tableCount); err != nil {
+			return err
+		}
+
+		databases = append(databases, model.Database{
+			InstanceID:   instanceID,
+			Name:         dbName,
+			CharacterSet: charset,
+			Collation:    collation,
+			Size:         size,
+			TableCount:   tableCount,
+		})
+	}
+
+	if err := rows.Err(); err != nil {
+		return err
+	}
+
+	// 一次性获取所有表信息
+	tableRows, err := db.Query(`
+		SELECT 
+			TABLE_SCHEMA,
+			TABLE_NAME,
+			TABLE_COMMENT,
+			ENGINE,
+			TABLE_COLLATION,
+			TABLE_ROWS,
+			DATA_LENGTH,
+			INDEX_LENGTH
+		FROM information_schema.TABLES
+		WHERE TABLE_SCHEMA NOT IN ('information_schema', 'performance_schema', 'mysql', 'sys')
+	`)
+	if err != nil {
+		return err
+	}
+	defer tableRows.Close()
+
+	// 按数据库分组存储表信息
+	tablesByDB := make(map[string][]model.Table)
+	for tableRows.Next() {
+		var schemaName, tableName, comment, engine, collation string
+		var rowCount, dataLength, indexLength int64
+		if err := tableRows.Scan(&schemaName, &tableName, &comment, &engine, &collation, &rowCount, &dataLength, &indexLength); err != nil {
+			return err
+		}
+
+		table := model.Table{
+			Name:      tableName,
+			Comment:   comment,
+			Engine:    engine,
+			Collation: collation,
+			RowCount:  rowCount,
+			Size:      dataLength,
+			IndexSize: indexLength,
+		}
+		tablesByDB[schemaName] = append(tablesByDB[schemaName], table)
+	}
+
+	if err := tableRows.Err(); err != nil {
+		return err
+	}
+
+	// 一次性获取所有索引信息
+	indexRows, err := db.Query(`
+		SELECT 
+			TABLE_SCHEMA,
+			TABLE_NAME,
+			INDEX_NAME,
+			INDEX_TYPE,
+			GROUP_CONCAT(
+				CONCAT(COLUMN_NAME, ':', SEQ_IN_INDEX)
+				ORDER BY SEQ_IN_INDEX
+				SEPARATOR ','
+			) as columns
+		FROM information_schema.STATISTICS
+		WHERE TABLE_SCHEMA NOT IN ('information_schema', 'performance_schema', 'mysql', 'sys')
+		GROUP BY TABLE_SCHEMA, TABLE_NAME, INDEX_NAME, INDEX_TYPE
+	`)
+	if err != nil {
+		return err
+	}
+	defer indexRows.Close()
+
+	// 按数据库和表分组存储索引信息
+	indexesByTable := make(map[string][]model.TableIndex)
+	for indexRows.Next() {
+		var schemaName, tableName, indexName, indexType, columnsStr string
+		if err := indexRows.Scan(&schemaName, &tableName, &indexName, &indexType, &columnsStr); err != nil {
+			return err
+		}
+
+		// 解析索引列信息
+		columns := make(model.IndexColumns, 0)
+		for _, col := range strings.Split(columnsStr, ",") {
+			parts := strings.Split(col, ":")
+			if len(parts) != 2 {
+				continue
+			}
+			columns = append(columns, struct {
+				Name  string `json:"name"`
+				Order string `json:"order"`
+			}{
+				Name:  parts[0],
+				Order: "ASC",
+			})
+		}
+
+		columnsJSON, err := json.Marshal(columns)
+		if err != nil {
+			return err
+		}
+
+		index := model.TableIndex{
+			Name:    indexName,
+			Type:    indexType,
+			Method:  "BTREE",
+			Columns: string(columnsJSON),
+		}
+
+		key := fmt.Sprintf("%s.%s", schemaName, tableName)
+		indexesByTable[key] = append(indexesByTable[key], index)
+	}
+
+	if err := indexRows.Err(); err != nil {
+		return err
+	}
+
+	// 获取当前数据库ID列表
+	var currentDBIDs []uint
+	if err := tx.Model(&model.Database{}).Where("instance_id = ?", instanceID).Pluck("id", &currentDBIDs).Error; err != nil {
+		return err
+	}
+
+	// 硬删除当前实例下的所有相关数据
+	if len(currentDBIDs) > 0 {
+		// 删除索引
+		if err := tx.Unscoped().Where("table_id IN (?)",
+			tx.Model(&model.Table{}).Where("database_id IN (?)", currentDBIDs).Select("id")).Delete(&model.TableIndex{}).Error; err != nil {
+			return err
+		}
+		// 删除表
+		if err := tx.Unscoped().Where("database_id IN (?)", currentDBIDs).Delete(&model.Table{}).Error; err != nil {
+			return err
+		}
+		// 删除数据库
+		if err := tx.Unscoped().Where("id IN (?)", currentDBIDs).Delete(&model.Database{}).Error; err != nil {
+			return err
+		}
+	}
+
+	// 批量创建数据库记录
+	for _, db := range databases {
+		if err := tx.Create(&db).Error; err != nil {
+			return err
+		}
+
+		// 准备表记录
+		tables := tablesByDB[db.Name]
+		for i := range tables {
+			tables[i].DatabaseID = db.ID
+		}
+
+		// 批量创建表记录
+		if len(tables) > 0 {
+			if err := tx.Create(&tables).Error; err != nil {
+				return err
+			}
+
+			// 准备索引记录
+			var allIndexes []model.TableIndex
+			for i := range tables {
+				key := fmt.Sprintf("%s.%s", db.Name, tables[i].Name)
+				indexes := indexesByTable[key]
+				for j := range indexes {
+					indexes[j].TableID = tables[i].ID
+					allIndexes = append(allIndexes, indexes[j])
+				}
+			}
+
+			// 批量创建索引记录
+			if len(allIndexes) > 0 {
+				if err := tx.Create(&allIndexes).Error; err != nil {
+					return err
+				}
+			}
+		}
+	}
+
+	return nil
+}
+
+// TestConnection 测试数据库连接
+func (s *InstanceService) TestConnection(host string, port int, username, password string) error {
+	instance := &model.Instance{
+		Host:     host,
+		Port:     port,
+		Username: username,
+		Password: password,
+	}
+
+	db, err := s.getMySQLConnection(instance)
+	if err != nil {
+		return err
+	}
+	defer db.Close()
 
 	// 测试连接
 	if err := db.Ping(); err != nil {
@@ -225,17 +518,18 @@ func (s *InstanceService) TestConnection(host string, port int, username, passwo
 
 // getMySQLVersion 获取MySQL版本
 func (s *InstanceService) getMySQLVersion(host string, port int, username, password string) (string, error) {
-	dsn := fmt.Sprintf("%s:%s@tcp(%s:%d)/?charset=utf8mb4&parseTime=True&loc=Local",
-		username, password, host, port)
+	instance := &model.Instance{
+		Host:     host,
+		Port:     port,
+		Username: username,
+		Password: password,
+	}
 
-	db, err := sql.Open("mysql", dsn)
+	db, err := s.getMySQLConnection(instance)
 	if err != nil {
-		return "", fmt.Errorf("%w: %v", ErrConnectionFailed, err)
+		return "", err
 	}
 	defer db.Close()
-
-	// 设置连接超时
-	db.SetConnMaxLifetime(time.Second * 5)
 
 	var version string
 	err = db.QueryRow("SELECT VERSION()").Scan(&version)

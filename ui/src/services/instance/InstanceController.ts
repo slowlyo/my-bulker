@@ -112,4 +112,32 @@ export async function testConnection(
     data: body,
     ...(options || {}),
   });
+}
+
+/** 同步数据库 POST /api/instances/sync-databases */
+export async function syncDatabases(
+  body?: {
+    instance_ids: number[];
+  },
+  options?: { [key: string]: any },
+) {
+  return request<Result_string_>('/api/instances/sync-databases', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    data: body,
+    ...(options || {}),
+  });
+}
+
+export interface InstanceOption {
+    value: number;
+    label: string;
+}
+
+export async function getInstanceOptions() {
+    return request<API.Response<InstanceOption[]>>('/api/instances/options', {
+        method: 'GET',
+    });
 } 

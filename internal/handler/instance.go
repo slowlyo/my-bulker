@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"fmt"
 	"mysql-batch-tools/internal/model"
 	"mysql-batch-tools/internal/pkg/response"
 	"mysql-batch-tools/internal/service"
@@ -136,4 +137,18 @@ func (h *InstanceHandler) Options(c *fiber.Ctx) error {
 	}
 
 	return response.Success(c, options)
+}
+
+// SyncDatabases 同步数据库信息
+func (h *InstanceHandler) SyncDatabases(c *fiber.Ctx) error {
+	var req model.SyncDatabasesRequest
+	if err := c.BodyParser(&req); err != nil {
+		return response.Invalid(c, "无效的请求数据")
+	}
+
+	if err := h.service.SyncDatabases(req.InstanceIDs); err != nil {
+		return response.Internal(c, fmt.Sprintf("同步数据库失败: %v", err))
+	}
+
+	return response.Success(c, nil)
 }

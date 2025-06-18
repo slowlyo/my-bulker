@@ -40,6 +40,12 @@ export default defineConfig({
             name: "实例",
             path: "/instance",
             component: "./Instance",
+            icon: "ClusterOutlined",
+        },
+        {
+            name: "数据库",
+            path: "/database",
+            component: "./Database",
             icon: "DatabaseOutlined",
         },
     ],
