@@ -1,10 +1,10 @@
 import { PageContainer, ProTable } from '@ant-design/pro-components';
 import type { ActionType, ProColumns } from '@ant-design/pro-components';
-import { Button, Space, Tag, Drawer, Descriptions, List, Modal, Spin } from 'antd';
+import { Button, Space, Tag, Drawer, Descriptions, Spin } from 'antd';
 import { useRef, useState, useEffect } from 'react';
-import { queryDatabaseList, getDatabaseDetail, getTableDetail } from '@/services/database/DatabaseController';
+import { queryDatabaseList, getDatabaseDetail } from '@/services/database/DatabaseController';
 import { getInstanceOptions, InstanceOption } from '@/services/instance/InstanceController';
-import { DatabaseInfo, TableInfo } from '@/services/database/typings';
+import { DatabaseInfo } from '@/services/database/typings';
 import { formatFileSize } from '@/utils/format';
 
 const DatabasePage: React.FC = () => {
@@ -26,10 +26,6 @@ const DatabasePage: React.FC = () => {
     const [drawerVisible, setDrawerVisible] = useState(false);
     const [currentDatabase, setCurrentDatabase] = useState<DatabaseInfo | null>(null);
     const [loadingDetail, setLoadingDetail] = useState(false);
-
-    const [tableDetailVisible, setTableDetailVisible] = useState(false);
-    const [currentTable, setCurrentTable] = useState<TableInfo | null>(null);
-    const [loadingTable, setLoadingTable] = useState(false);
 
     const columns: ProColumns<DatabaseInfo>[] = [
         {
@@ -55,11 +51,13 @@ const DatabasePage: React.FC = () => {
             title: '表数量',
             dataIndex: 'table_count',
             hideInSearch: true,
+            sorter: true,
         },
         {
             title: '数据库大小',
             dataIndex: 'size',
             hideInSearch: true,
+            sorter: true,
             render: (text) => formatFileSize(Number(text)),
         },
         {
@@ -67,6 +65,7 @@ const DatabasePage: React.FC = () => {
             dataIndex: 'updated_at',
             valueType: 'dateTime',
             hideInSearch: true,
+            sorter: true,
         },
     ];
 
@@ -84,20 +83,6 @@ const DatabasePage: React.FC = () => {
         }
     };
 
-    // 点击表项，加载表详情
-    const handleTableClick = async (table: TableInfo) => {
-        setTableDetailVisible(true);
-        setLoadingTable(true);
-        try {
-            const res = await getTableDetail(table.id);
-            if (res.code === 200) {
-                setCurrentTable(res.data);
-            }
-        } finally {
-            setLoadingTable(false);
-        }
-    };
-
     return (
         <PageContainer ghost>
             <ProTable<DatabaseInfo>
@@ -107,11 +92,27 @@ const DatabasePage: React.FC = () => {
                 search={{
                     labelWidth: 120,
                 }}
-                request={async (params) => {
+                request={async (params, sort, filter) => {
                     const { current, pageSize, ...rest } = params;
+                    
+                    // 处理排序参数
+                    let sort_field = undefined;
+                    let sort_order = undefined;
+                    
+                    if (sort && Object.keys(sort).length > 0) {
+                        // 获取第一个排序字段（ProTable 通常只支持单字段排序）
+                        const fieldName = Object.keys(sort)[0];
+                        const order = sort[fieldName];
+                        
+                        sort_field = fieldName;
+                        sort_order = order === 'ascend' ? 'asc' : 'desc';
+                    }
+                    
                     const res = await queryDatabaseList({
                         page: current,
                         pageSize,
+                        sort_field,
+                        sort_order,
                         ...rest,
                     });
                     return {
@@ -131,7 +132,7 @@ const DatabasePage: React.FC = () => {
 
             <Drawer
                 title={currentDatabase ? `数据库：${currentDatabase.name}` : '数据库详情'}
-                width={600}
+                width={400}
                 open={drawerVisible}
                 onClose={() => {
                     setDrawerVisible(false);
@@ -143,7 +144,7 @@ const DatabasePage: React.FC = () => {
                     <Spin />
                 ) : currentDatabase ? (
                     <>
-                        <Descriptions column={1} bordered size="small">
+                        <Descriptions column={1} bordered style={{ marginBottom: 24 }}>
                             <Descriptions.Item label="数据库名称">{currentDatabase.name}</Descriptions.Item>
                             <Descriptions.Item label="实例名称">{currentDatabase.instance?.name}</Descriptions.Item>
                             <Descriptions.Item label="字符集">{currentDatabase.character_set}</Descriptions.Item>
@@ -151,50 +152,9 @@ const DatabasePage: React.FC = () => {
                             <Descriptions.Item label="表数量">{currentDatabase.table_count}</Descriptions.Item>
                             <Descriptions.Item label="数据库大小">{formatFileSize(currentDatabase.size)}</Descriptions.Item>
                         </Descriptions>
-                        <div style={{ marginTop: 24 }}>
-                            <List
-                                bordered
-                                dataSource={currentDatabase.tables || []}
-                                renderItem={item => (
-                                    <List.Item style={{ cursor: 'pointer' }} onClick={() => handleTableClick(item)}>
-                                        <Space>
-                                            <strong>{item.name}</strong>
-                                            <span>{item.comment}</span>
-                                        </Space>
-                                    </List.Item>
-                                )}
-                                locale={{ emptyText: '暂无表' }}
-                            />
-                        </div>
                     </>
                 ) : null}
             </Drawer>
-
-            <Modal
-                title={currentTable ? `表：${currentTable.name}` : '表详情'}
-                open={tableDetailVisible}
-                onCancel={() => {
-                    setTableDetailVisible(false);
-                    setCurrentTable(null);
-                }}
-                footer={null}
-                destroyOnHidden
-            >
-                {loadingTable ? (
-                    <Spin />
-                ) : currentTable ? (
-                    <Descriptions column={1} bordered size="small">
-                        <Descriptions.Item label="表名">{currentTable.name}</Descriptions.Item>
-                        <Descriptions.Item label="注释">{currentTable.comment}</Descriptions.Item>
-                        <Descriptions.Item label="引擎">{currentTable.engine}</Descriptions.Item>
-                        <Descriptions.Item label="字符集">{currentTable.character_set}</Descriptions.Item>
-                        <Descriptions.Item label="排序规则">{currentTable.collation}</Descriptions.Item>
-                        <Descriptions.Item label="行数">{currentTable.row_count}</Descriptions.Item>
-                        <Descriptions.Item label="表大小">{formatFileSize(currentTable.size)}</Descriptions.Item>
-                        <Descriptions.Item label="索引大小">{formatFileSize(currentTable.index_size)}</Descriptions.Item>
-                    </Descriptions>
-                ) : null}
-            </Modal>
         </PageContainer>
     );
 };

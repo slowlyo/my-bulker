@@ -3,12 +3,10 @@ package service
 import (
 	"context"
 	"database/sql"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"mysql-batch-tools/internal/model"
 	"mysql-batch-tools/internal/pkg/database"
-	"strings"
 	"time"
 
 	_ "github.com/go-sql-driver/mysql"
@@ -320,115 +318,6 @@ func (s *InstanceService) syncDatabases(tx *gorm.DB, db *sql.DB, instanceID uint
 		return err
 	}
 
-	// 一次性获取所有表信息
-	tableRows, err := db.Query(`
-		SELECT 
-			TABLE_SCHEMA,
-			TABLE_NAME,
-			TABLE_COMMENT,
-			ENGINE,
-			TABLE_COLLATION,
-			TABLE_ROWS,
-			DATA_LENGTH,
-			INDEX_LENGTH
-		FROM information_schema.TABLES
-		WHERE TABLE_SCHEMA NOT IN ('information_schema', 'performance_schema', 'mysql', 'sys')
-	`)
-	if err != nil {
-		return err
-	}
-	defer tableRows.Close()
-
-	// 按数据库分组存储表信息
-	tablesByDB := make(map[string][]model.Table)
-	for tableRows.Next() {
-		var schemaName, tableName, comment, engine, collation string
-		var rowCount, dataLength, indexLength int64
-		if err := tableRows.Scan(&schemaName, &tableName, &comment, &engine, &collation, &rowCount, &dataLength, &indexLength); err != nil {
-			return err
-		}
-
-		table := model.Table{
-			Name:      tableName,
-			Comment:   comment,
-			Engine:    engine,
-			Collation: collation,
-			RowCount:  rowCount,
-			Size:      dataLength,
-			IndexSize: indexLength,
-		}
-		tablesByDB[schemaName] = append(tablesByDB[schemaName], table)
-	}
-
-	if err := tableRows.Err(); err != nil {
-		return err
-	}
-
-	// 一次性获取所有索引信息
-	indexRows, err := db.Query(`
-		SELECT 
-			TABLE_SCHEMA,
-			TABLE_NAME,
-			INDEX_NAME,
-			INDEX_TYPE,
-			GROUP_CONCAT(
-				CONCAT(COLUMN_NAME, ':', SEQ_IN_INDEX)
-				ORDER BY SEQ_IN_INDEX
-				SEPARATOR ','
-			) as columns
-		FROM information_schema.STATISTICS
-		WHERE TABLE_SCHEMA NOT IN ('information_schema', 'performance_schema', 'mysql', 'sys')
-		GROUP BY TABLE_SCHEMA, TABLE_NAME, INDEX_NAME, INDEX_TYPE
-	`)
-	if err != nil {
-		return err
-	}
-	defer indexRows.Close()
-
-	// 按数据库和表分组存储索引信息
-	indexesByTable := make(map[string][]model.TableIndex)
-	for indexRows.Next() {
-		var schemaName, tableName, indexName, indexType, columnsStr string
-		if err := indexRows.Scan(&schemaName, &tableName, &indexName, &indexType, &columnsStr); err != nil {
-			return err
-		}
-
-		// 解析索引列信息
-		columns := make(model.IndexColumns, 0)
-		for _, col := range strings.Split(columnsStr, ",") {
-			parts := strings.Split(col, ":")
-			if len(parts) != 2 {
-				continue
-			}
-			columns = append(columns, struct {
-				Name  string `json:"name"`
-				Order string `json:"order"`
-			}{
-				Name:  parts[0],
-				Order: "ASC",
-			})
-		}
-
-		columnsJSON, err := json.Marshal(columns)
-		if err != nil {
-			return err
-		}
-
-		index := model.TableIndex{
-			Name:    indexName,
-			Type:    indexType,
-			Method:  "BTREE",
-			Columns: string(columnsJSON),
-		}
-
-		key := fmt.Sprintf("%s.%s", schemaName, tableName)
-		indexesByTable[key] = append(indexesByTable[key], index)
-	}
-
-	if err := indexRows.Err(); err != nil {
-		return err
-	}
-
 	// 获取当前数据库ID列表
 	var currentDBIDs []uint
 	if err := tx.Model(&model.Database{}).Where("instance_id = ?", instanceID).Pluck("id", &currentDBIDs).Error; err != nil {
@@ -437,15 +326,6 @@ func (s *InstanceService) syncDatabases(tx *gorm.DB, db *sql.DB, instanceID uint
 
 	// 硬删除当前实例下的所有相关数据
 	if len(currentDBIDs) > 0 {
-		// 删除索引
-		if err := tx.Unscoped().Where("table_id IN (?)",
-			tx.Model(&model.Table{}).Where("database_id IN (?)", currentDBIDs).Select("id")).Delete(&model.TableIndex{}).Error; err != nil {
-			return err
-		}
-		// 删除表
-		if err := tx.Unscoped().Where("database_id IN (?)", currentDBIDs).Delete(&model.Table{}).Error; err != nil {
-			return err
-		}
 		// 删除数据库
 		if err := tx.Unscoped().Where("id IN (?)", currentDBIDs).Delete(&model.Database{}).Error; err != nil {
 			return err
@@ -456,37 +336,6 @@ func (s *InstanceService) syncDatabases(tx *gorm.DB, db *sql.DB, instanceID uint
 	for _, db := range databases {
 		if err := tx.Create(&db).Error; err != nil {
 			return err
-		}
-
-		// 准备表记录
-		tables := tablesByDB[db.Name]
-		for i := range tables {
-			tables[i].DatabaseID = db.ID
-		}
-
-		// 批量创建表记录
-		if len(tables) > 0 {
-			if err := tx.Create(&tables).Error; err != nil {
-				return err
-			}
-
-			// 准备索引记录
-			var allIndexes []model.TableIndex
-			for i := range tables {
-				key := fmt.Sprintf("%s.%s", db.Name, tables[i].Name)
-				indexes := indexesByTable[key]
-				for j := range indexes {
-					indexes[j].TableID = tables[i].ID
-					allIndexes = append(allIndexes, indexes[j])
-				}
-			}
-
-			// 批量创建索引记录
-			if len(allIndexes) > 0 {
-				if err := tx.Create(&allIndexes).Error; err != nil {
-					return err
-				}
-			}
 		}
 	}
 

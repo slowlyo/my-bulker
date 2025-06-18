@@ -24,7 +24,6 @@ type Database struct {
 
 	// 关联
 	Instance Instance `gorm:"foreignKey:InstanceID" json:"instance,omitempty"`
-	Tables   []Table  `gorm:"foreignKey:DatabaseID" json:"tables,omitempty"`
 }
 
 // TableName 指定表名

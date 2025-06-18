@@ -31,6 +31,10 @@ func (h *DatabaseHandler) List(c *fiber.Ctx) error {
 		return response.Invalid(c, "无效的查询参数")
 	}
 
+	// 验证并设置默认值
+	req.Pagination.ValidateAndSetDefaults()
+	req.Sorting.ValidateAndSetDefaults()
+
 	// 处理实例ID参数
 	if instanceIDStr := c.Query("instance_id"); instanceIDStr != "" {
 		if instanceID, err := strconv.ParseUint(instanceIDStr, 10, 32); err == nil {

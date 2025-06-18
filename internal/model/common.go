@@ -31,6 +31,32 @@ func (p *Pagination) GetLimit() int {
 	return p.PageSize
 }
 
+// Sorting 排序参数
+type Sorting struct {
+	SortField string `query:"sort_field" json:"sort_field"` // 排序字段
+	SortOrder string `query:"sort_order" json:"sort_order"` // 排序方向：asc, desc
+}
+
+// ValidateAndSetDefaults 验证并设置默认值
+func (s *Sorting) ValidateAndSetDefaults() {
+	// 设置默认排序
+	if s.SortField == "" {
+		s.SortField = "updated_at"
+	}
+	if s.SortOrder == "" {
+		s.SortOrder = "desc"
+	}
+	// 验证排序方向
+	if s.SortOrder != "asc" && s.SortOrder != "desc" {
+		s.SortOrder = "desc"
+	}
+}
+
+// GetSortClause 获取排序子句
+func (s *Sorting) GetSortClause() string {
+	return s.SortField + " " + s.SortOrder
+}
+
 // Option 通用选项类型
 type Option struct {
 	Value interface{} `json:"value"` // 选项值

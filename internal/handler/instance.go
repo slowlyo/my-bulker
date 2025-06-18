@@ -150,5 +150,5 @@ func (h *InstanceHandler) SyncDatabases(c *fiber.Ctx) error {
 		return response.Internal(c, fmt.Sprintf("同步数据库失败: %v", err))
 	}
 
-	return response.Success(c, nil)
+	return response.Ok(c, "同步数据库成功")
 }

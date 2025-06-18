@@ -9,6 +9,7 @@ type InstanceBasicInfo struct {
 // DatabaseListRequest 数据库列表请求
 type DatabaseListRequest struct {
 	Pagination `query:""` // 嵌入分页参数
+	Sorting    `query:""` // 嵌入排序参数
 	Name       string     `query:"name" json:"name"`               // 数据库名称（模糊查询）
 	InstanceID uint       `query:"instance_id" json:"instance_id"` // 实例ID
 }
@@ -27,7 +28,6 @@ type DatabaseResponse struct {
 	MaxConnections    int               `json:"max_connections"`
 	ConnectionTimeout int               `json:"connection_timeout"`
 	Instance          InstanceBasicInfo `json:"instance"`
-	Tables            []Table           `json:"tables,omitempty"`
 }
 
 // DatabaseListResponse 数据库列表响应

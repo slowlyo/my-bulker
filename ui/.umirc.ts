@@ -48,6 +48,18 @@ export default defineConfig({
             component: "./Database",
             icon: "DatabaseOutlined",
         },
+        {
+            name: "查询任务",
+            path: "/query-task",
+            component: "./QueryTask",
+            icon: "PlayCircleOutlined",
+        },
+        {
+            name: "查询任务详情",
+            path: "/query-task/detail/:id",
+            component: "./QueryTask/Detail",
+            hideInMenu: true,
+        },
     ],
 
     npmClient: "pnpm",

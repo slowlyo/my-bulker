@@ -41,6 +41,7 @@ func (QueryTask) TableName() string {
 type TaskDatabase struct {
 	InstanceID   uint   `json:"instance_id"`   // 实例ID
 	DatabaseName string `json:"database_name"` // 数据库名称
+	InstanceName string `json:"instance_name"` // 实例名称
 }
 
 // TaskDatabases 任务目标数据库列表

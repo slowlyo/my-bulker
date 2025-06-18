@@ -34,6 +34,11 @@ func (s *DatabaseService) List(ctx context.Context, req *model.DatabaseListReque
 		query = query.Where("instance_id = ?", req.InstanceID)
 	}
 
+	// 应用排序条件
+	if req.SortField != "" {
+		query = query.Order(req.Sorting.GetSortClause())
+	}
+
 	// 获取总数
 	if err := query.Count(&total).Error; err != nil {
 		return nil, err
@@ -75,7 +80,7 @@ func (s *DatabaseService) List(ctx context.Context, req *model.DatabaseListReque
 // Get 获取数据库详情
 func (s *DatabaseService) Get(ctx context.Context, id uint) (*model.DatabaseResponse, error) {
 	var db model.Database
-	if err := s.db.Preload("Instance").Preload("Tables").First(&db, id).Error; err != nil {
+	if err := s.db.Preload("Instance").First(&db, id).Error; err != nil {
 		return nil, err
 	}
 
@@ -96,6 +101,5 @@ func (s *DatabaseService) Get(ctx context.Context, id uint) (*model.DatabaseResp
 			ID:   db.Instance.ID,
 			Name: db.Instance.Name,
 		},
-		Tables: db.Tables,
 	}, nil
 }

@@ -13,7 +13,7 @@ func Register(app *fiber.App) {
 	health := handler.NewHealth()
 	instanceHandler := handler.NewInstanceHandler()
 	databaseHandler := handler.NewDatabaseHandler()
-	tableHandler := handler.NewTableHandler()
+	queryTaskHandler := handler.NewQueryTaskHandler()
 
 	// 全局中间件
 	app.Use(middleware.CORS())
@@ -44,10 +44,13 @@ func Register(app *fiber.App) {
 			databases.Get("/:id", databaseHandler.Get) // 获取数据库详情
 		}
 
-		// 表管理
-		tables := api.Group("/tables")
+		// 查询任务管理
+		queryTasks := api.Group("/query-tasks")
 		{
-			tables.Get("/:id", tableHandler.Get) // 获取表详情
+			queryTasks.Post("", queryTaskHandler.Create)              // 创建查询任务
+			queryTasks.Get("", queryTaskHandler.List)                 // 获取查询任务列表
+			queryTasks.Get("/:id", queryTaskHandler.Get)              // 获取查询任务详情
+			queryTasks.Get("/:taskId/sqls", queryTaskHandler.GetSQLs) // 获取查询任务SQL语句列表
 		}
 	}
 }
