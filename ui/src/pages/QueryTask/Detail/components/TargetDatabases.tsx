@@ -50,7 +50,7 @@ const TargetDatabases: React.FC<TargetDatabasesProps> = ({ databases }) => {
                         key={`${db.instance_id}-${db.database_name}-${index}`}
                         style={{
                             border: '1px solid #e8e8e8',
-                            borderRadius: '6px',
+                            borderRadius: '8px',
                             padding: '12px',
                             background: '#fff',
                             transition: 'all 0.2s ease',
@@ -88,7 +88,7 @@ const TargetDatabases: React.FC<TargetDatabasesProps> = ({ databases }) => {
                 marginTop: '16px', 
                 padding: '12px', 
                 background: '#f8f9fa', 
-                borderRadius: '6px',
+                borderRadius: '8px',
                 fontSize: '12px',
                 color: '#666'
             }}>

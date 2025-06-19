@@ -1,46 +1,89 @@
 import React, { useState, useEffect } from 'react';
 import { PageContainer } from '@ant-design/pro-components';
-import { Card, Descriptions, Tag, Space, Button, Spin, message, Tabs } from 'antd';
+import { Card, Descriptions, Tag, Space, Button, Spin, message, Tabs, Collapse, Tooltip } from 'antd';
 import { ArrowLeftOutlined, ReloadOutlined } from '@ant-design/icons';
 import { useParams, history, useLocation } from '@umijs/max';
-import { getQueryTaskDetail } from '@/services/queryTask/QueryTaskController';
+import { getQueryTaskDetail, getQueryTaskSQLExecutions, getQueryTaskSQLs } from '@/services/queryTask/QueryTaskController';
 import { QueryTaskInfo } from '@/services/queryTask/typings';
 import { formatDateTime } from '@/utils/format';
 import ExecutionStats from './components/ExecutionStats';
 import TargetDatabases from './components/TargetDatabases';
 import TaskSQLs from './components/TaskSQLs';
+import QueryResultTable from './components/QueryResultTable';
+import QueryTaskBaseInfo from './components/QueryTaskBaseInfo';
+import QueryProgressPanel from './components/QueryProgressPanel';
+import QueryResultsPanel from './components/QueryResultsPanel';
 
 const QueryTaskDetailPage: React.FC = () => {
+    // hooks 顶层声明
     const { id } = useParams<{ id: string }>();
     const [task, setTask] = useState<QueryTaskInfo | null>(null);
     const [loading, setLoading] = useState(true);
     const location = useLocation();
-
-    // 从地址栏参数获取当前tab
-    const getCurrentTab = () => {
+    const [activeTab, setActiveTab] = useState(() => {
         const searchParams = new URLSearchParams(location.search);
         const tab = searchParams.get('tab');
         return tab && ['detail', 'progress', 'results'].includes(tab) ? tab : 'detail';
-    };
+    });
+    const [sqlExecutions, setSqlExecutions] = useState<any[]>([]);
+    const [loadingExecutions, setLoadingExecutions] = useState(false);
+    const [resultData, setResultData] = useState<any[]>([]);
+    const [resultLoading, setResultLoading] = useState(false);
+    const [activeSQL, setActiveSQL] = useState<any>(null); // 当前选中的SQL
+    const [sqlList, setSqlList] = useState<any[]>([]); // 新增，保存带 schema 的 SQL 列表
 
-    const [activeTab, setActiveTab] = useState(getCurrentTab);
-
-    // 处理tab切换
-    const handleTabChange = (key: string) => {
-        setActiveTab(key);
-        // 更新地址栏参数
-        const searchParams = new URLSearchParams(location.search);
-        searchParams.set('tab', key);
-        history.replace({
-            pathname: location.pathname,
-            search: searchParams.toString(),
-        });
-    };
-
-    // 监听地址栏参数变化
+    // hooks 逻辑
     useEffect(() => {
-        setActiveTab(getCurrentTab());
+        setActiveTab(() => {
+            const searchParams = new URLSearchParams(location.search);
+            const tab = searchParams.get('tab');
+            return tab && ['detail', 'progress', 'results'].includes(tab) ? tab : 'detail';
+        });
     }, [location.search]);
+
+    useEffect(() => {
+        if (!id) return;
+        setLoading(true);
+        // 并行获取任务详情、SQL列表、SQL执行明细
+        Promise.all([
+            getQueryTaskDetail(parseInt(id!)),
+            getQueryTaskSQLs(parseInt(id!)),
+            getQueryTaskSQLExecutions(parseInt(id!)),
+        ]).then(([detailRes, sqlsRes, execRes]) => {
+            if (detailRes.code === 200) {
+                setTask(detailRes.data);
+            } else {
+                message.error(detailRes.message || '获取任务详情失败');
+            }
+            if (sqlsRes.code === 200) {
+                setSqlList(sqlsRes.data?.items || []);
+            }
+            if (execRes.code === 200) {
+                setSqlExecutions(execRes.data || []);
+            }
+        }).catch(() => {
+            message.error('获取任务数据失败');
+        }).finally(() => setLoading(false));
+    }, [id]);
+
+    useEffect(() => {
+        if (activeTab === 'progress' && id) {
+            setLoadingExecutions(true);
+            getQueryTaskSQLExecutions(parseInt(id!)).then(res => {
+                if (res.code === 200) {
+                    setSqlExecutions(res.data || []);
+                }
+            }).finally(() => setLoadingExecutions(false));
+        }
+    }, [activeTab, id]);
+
+    useEffect(() => {
+        if (sqlExecutions.length > 0 && !activeSQL) {
+            setActiveSQL(sqlExecutions[0]);
+            fetchResultData(sqlExecutions[0]);
+        }
+        // eslint-disable-next-line
+    }, [sqlExecutions]);
 
     // 状态映射
     const statusMap = {
@@ -49,29 +92,6 @@ const QueryTaskDetailPage: React.FC = () => {
         2: { text: '已完成', color: 'success' },
         3: { text: '失败', color: 'error' },
     };
-
-    // 加载任务详情
-    const loadTaskDetail = async () => {
-        if (!id) return;
-        
-        setLoading(true);
-        try {
-            const res = await getQueryTaskDetail(parseInt(id));
-            if (res.code === 200) {
-                setTask(res.data);
-            } else {
-                message.error(res.message || '获取任务详情失败');
-            }
-        } catch (error) {
-            message.error('获取任务详情失败');
-        } finally {
-            setLoading(false);
-        }
-    };
-
-    useEffect(() => {
-        loadTaskDetail();
-    }, [id]);
 
     // 返回列表页
     const handleBack = () => {
@@ -103,80 +123,83 @@ const QueryTaskDetailPage: React.FC = () => {
 
     const status = statusMap[task.status as keyof typeof statusMap];
 
-    // 任务详情标签页内容
-    const taskDetailContent = (
-        <div>
-            <Card title="基本信息" style={{ marginBottom: 16 }}>
-                <Descriptions column={2} bordered>
-                    <Descriptions.Item label="任务名称">
-                        <strong>{task.task_name}</strong>
-                    </Descriptions.Item>
-                    <Descriptions.Item label="任务状态">
-                        <Tag color={status.color}>{status.text}</Tag>
-                    </Descriptions.Item>
-                    <Descriptions.Item label="任务描述" span={2}>
-                        {task.description || '-'}
-                    </Descriptions.Item>
-                    <Descriptions.Item label="创建时间">
-                        {formatDateTime(task.created_at)}
-                    </Descriptions.Item>
-                    <Descriptions.Item label="更新时间">
-                        {formatDateTime(task.updated_at)}
-                    </Descriptions.Item>
-                    <Descriptions.Item label="开始时间">
-                        {formatDateTime(task.started_at)}
-                    </Descriptions.Item>
-                    <Descriptions.Item label="完成时间">
-                        {formatDateTime(task.completed_at)}
-                    </Descriptions.Item>
-                </Descriptions>
-            </Card>
+    const statusColor = (status: number) => {
+        switch (status) {
+            case 0: return '#d9d9d9'; // 待执行
+            case 1: return '#1890ff'; // 执行中
+            case 2: return '#52c41a'; // 成功
+            case 3: return '#ff4d4f'; // 失败
+            default: return '#d9d9d9';
+        }
+    };
+    const statusText = (status: number) => {
+        switch (status) {
+            case 0: return '待执行';
+            case 1: return '执行中';
+            case 2: return '成功';
+            case 3: return '失败';
+            default: return '未知';
+        }
+    };
 
-            <TargetDatabases databases={task.databases} />
-
-            <TaskSQLs taskId={task.id} />
-        </div>
-    );
-
-    // 查询进度标签页内容
-    const queryProgressContent = (
-        <div>
-            <ExecutionStats task={task} />
-            
-            <Card title="进度详情" style={{ marginBottom: 16 }}>
-                <div style={{ textAlign: 'center', padding: '40px', color: '#999' }}>
-                    查询进度详情功能开发中...
-                </div>
-            </Card>
-        </div>
-    );
-
-    // 查询结果标签页内容
-    const queryResultsContent = (
-        <div>
-            <Card title="查询结果" style={{ marginBottom: 16 }}>
-                <div style={{ textAlign: 'center', padding: '40px', color: '#999' }}>
-                    查询结果功能开发中...
-                </div>
-            </Card>
-        </div>
-    );
+    // 获取结果数据的函数（需根据实际API调整）
+    const fetchResultData = async (sql: any) => {
+        setResultLoading(true);
+        try {
+            // 查找 schema
+            const sqlWithSchema = sqlList.find((s) => s.id === sql.id);
+            setActiveSQL({
+                ...sql,
+                result_table_schema: sqlWithSchema?.result_table_schema || '',
+            });
+            // ...加载数据
+            setResultData([]);
+        } finally {
+            setResultLoading(false);
+        }
+    };
 
     const tabItems = [
         {
             key: 'detail',
             label: '任务详情',
-            children: taskDetailContent,
+            children: (
+                <div>
+                    <QueryTaskBaseInfo task={task} status={status} />
+                    <TargetDatabases databases={task.databases} />
+                    <TaskSQLs sqls={sqlList} />
+                </div>
+            ),
         },
         {
             key: 'progress',
             label: '查询进度',
-            children: queryProgressContent,
+            children: (
+                <>
+                    <ExecutionStats task={task} />
+                    <QueryProgressPanel
+                        task={task}
+                        sqlExecutions={sqlExecutions}
+                        loadingExecutions={loadingExecutions}
+                        statusColor={statusColor}
+                        statusText={statusText}
+                    />
+                </>
+            ),
         },
         {
             key: 'results',
             label: '查询结果',
-            children: queryResultsContent,
+            children: (
+                <QueryResultsPanel
+                    sqlExecutions={sqlExecutions}
+                    activeSQL={activeSQL}
+                    setActiveSQL={setActiveSQL}
+                    resultData={resultData}
+                    resultLoading={resultLoading}
+                    fetchResultData={fetchResultData}
+                />
+            ),
         },
     ];
 
@@ -190,7 +213,18 @@ const QueryTaskDetailPage: React.FC = () => {
                     <Button
                         key="refresh"
                         icon={<ReloadOutlined />}
-                        onClick={loadTaskDetail}
+                        onClick={() => {
+                            setLoading(true);
+                            getQueryTaskDetail(parseInt(id!)).then(res => {
+                                if (res.code === 200) {
+                                    setTask(res.data);
+                                } else {
+                                    message.error(res.message || '获取任务详情失败');
+                                }
+                            }).catch(() => {
+                                message.error('获取任务详情失败');
+                            }).finally(() => setLoading(false));
+                        }}
                     >
                         刷新
                     </Button>,
@@ -202,7 +236,16 @@ const QueryTaskDetailPage: React.FC = () => {
                 items={tabItems}
                 style={{ marginTop: 16 }}
                 activeKey={activeTab}
-                onChange={handleTabChange}
+                onChange={(key) => {
+                    setActiveTab(key);
+                    // 更新地址栏参数
+                    const searchParams = new URLSearchParams(location.search);
+                    searchParams.set('tab', key);
+                    history.replace({
+                        pathname: location.pathname,
+                        search: searchParams.toString(),
+                    });
+                }}
             />
         </PageContainer>
     );

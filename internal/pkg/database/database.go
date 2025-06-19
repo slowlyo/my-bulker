@@ -8,6 +8,7 @@ import (
 
 	"mysql-batch-tools/internal/model"
 
+	"gorm.io/driver/mysql"
 	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
 	"gorm.io/gorm/logger"
@@ -92,4 +93,28 @@ func Init() error {
 // GetDB 获取数据库连接实例
 func GetDB() *gorm.DB {
 	return db
+}
+
+// NewMySQLGormDB 根据实例信息创建 MySQL gorm.DB 连接
+func NewMySQLGormDB(instance *model.Instance, dbName string, maxConn int) (*gorm.DB, error) {
+	dsn := fmt.Sprintf("%s:%s@tcp(%s:%d)/%s?charset=utf8mb4&parseTime=True&loc=Local",
+		instance.Username,
+		instance.Password,
+		instance.Host,
+		instance.Port,
+		dbName,
+	)
+	db, err := gorm.Open(mysql.Open(dsn), &gorm.Config{
+		Logger: logger.Default.LogMode(logger.Silent),
+	})
+	if err != nil {
+		return nil, err
+	}
+	sqlDB, err := db.DB()
+	if err != nil {
+		return nil, err
+	}
+	sqlDB.SetMaxIdleConns(maxConn)
+	sqlDB.SetMaxOpenConns(maxConn)
+	return db, nil
 }

@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"context"
 	"mysql-batch-tools/internal/model"
 	"mysql-batch-tools/internal/pkg/database"
 	"mysql-batch-tools/internal/pkg/response"
@@ -114,4 +115,41 @@ func (h *QueryTaskHandler) GetSQLs(c *fiber.Ctx) error {
 	}
 
 	return response.Success(c, sqls)
+}
+
+// GetSQLExecutions 获取任务下所有SQL及其执行明细
+func (h *QueryTaskHandler) GetSQLExecutions(c *fiber.Ctx) error {
+	taskIDStr := c.Params("taskId")
+	taskID, err := strconv.ParseUint(taskIDStr, 10, 32)
+	if err != nil {
+		return response.Invalid(c, "无效的任务ID")
+	}
+
+	// 查询所有SQL
+	sqls, err := h.service.GetSQLsWithExecutions(c.Context(), uint(taskID))
+	if err != nil {
+		return response.Internal(c, "获取SQL执行明细失败")
+	}
+
+	return response.Success(c, sqls)
+}
+
+// Run 运行查询任务
+func (h *QueryTaskHandler) Run(c *fiber.Ctx) error {
+	idStr := c.Params("id")
+	id, err := strconv.ParseUint(idStr, 10, 32)
+	if err != nil {
+		return response.Invalid(c, "无效的任务ID")
+	}
+	db := database.GetDB()
+	// 1. 立即将任务状态设为执行中
+	if err := db.Model(&model.QueryTask{}).Where("id = ?", id).Update("status", 1).Error; err != nil {
+		return response.Internal(c, "更新任务状态失败: "+err.Error())
+	}
+	// 2. 异步执行任务
+	go func(taskID uint) {
+		runService := service.NewQueryTaskRunService(db)
+		_ = runService.Run(context.Background(), uint(taskID))
+	}(uint(id))
+	return response.Ok(c, "任务已开始执行")
 }

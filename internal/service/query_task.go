@@ -143,3 +143,76 @@ func (s *QueryTaskService) GetSQLs(ctx context.Context, taskID uint) (*model.Que
 		Items: items,
 	}, nil
 }
+
+// GetSQLsWithExecutions 获取任务下所有SQL及其执行明细
+func (s *QueryTaskService) GetSQLsWithExecutions(ctx context.Context, taskID uint) ([]map[string]interface{}, error) {
+	var sqls []model.QueryTaskSQL
+	if err := s.db.Where("task_id = ?", taskID).Order("sql_order ASC").Find(&sqls).Error; err != nil {
+		return nil, err
+	}
+
+	// 一次性查出所有 executions
+	var allExecutions []model.QueryTaskExecution
+	s.db.Where("sql_id IN ?", getSQLIDs(sqls)).Order("id ASC").Find(&allExecutions)
+
+	// 收集所有 instance_id
+	instanceIDSet := make(map[uint]struct{})
+	for _, e := range allExecutions {
+		instanceIDSet[e.InstanceID] = struct{}{}
+	}
+	ids := make([]uint, 0, len(instanceIDSet))
+	for id := range instanceIDSet {
+		ids = append(ids, id)
+	}
+	// 一次性查实例名
+	var instances []model.Instance
+	nameMap := make(map[uint]string)
+	if len(ids) > 0 {
+		s.db.Model(&model.Instance{}).Where("id IN ?", ids).Find(&instances)
+		for _, inst := range instances {
+			nameMap[inst.ID] = inst.Name
+		}
+	}
+
+	// 按 sql_id 分组
+	grouped := make(map[uint][]map[string]interface{})
+	for _, e := range allExecutions {
+		m := map[string]interface{}{
+			"id":             e.ID,
+			"created_at":     e.CreatedAt,
+			"updated_at":     e.UpdatedAt,
+			"task_id":        e.TaskID,
+			"sql_id":         e.SQLID,
+			"instance_id":    e.InstanceID,
+			"database_name":  e.DatabaseName,
+			"status":         e.Status,
+			"error_message":  e.ErrorMessage,
+			"result_count":   e.ResultCount,
+			"execution_time": e.ExecutionTime,
+			"started_at":     e.StartedAt,
+			"completed_at":   e.CompletedAt,
+			"instance_name":  nameMap[e.InstanceID],
+		}
+		grouped[e.SQLID] = append(grouped[e.SQLID], m)
+	}
+
+	result := make([]map[string]interface{}, len(sqls))
+	for i, sql := range sqls {
+		result[i] = map[string]interface{}{
+			"id":          sql.ID,
+			"sql_order":   sql.SQLOrder,
+			"sql_content": sql.SQLContent,
+			"executions":  grouped[sql.ID],
+		}
+	}
+	return result, nil
+}
+
+// getSQLIDs 辅助函数
+func getSQLIDs(sqls []model.QueryTaskSQL) []uint {
+	ids := make([]uint, 0, len(sqls))
+	for _, s := range sqls {
+		ids = append(ids, s.ID)
+	}
+	return ids
+}

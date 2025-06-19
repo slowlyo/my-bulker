@@ -13,7 +13,7 @@ const ExecutionStats: React.FC<ExecutionStatsProps> = ({ task }) => {
                 {/* 数据库统计 */}
                 <div style={{ 
                     border: '1px solid #e8e8e8',
-                    borderRadius: '6px',
+                    borderRadius: '8px',
                     padding: '16px',
                     background: '#fff',
                     transition: 'all 0.2s ease',
@@ -82,7 +82,7 @@ const ExecutionStats: React.FC<ExecutionStatsProps> = ({ task }) => {
                 {/* SQL统计 */}
                 <div style={{ 
                     border: '1px solid #e8e8e8',
-                    borderRadius: '6px',
+                    borderRadius: '8px',
                     padding: '16px',
                     background: '#fff',
                     transition: 'all 0.2s ease',

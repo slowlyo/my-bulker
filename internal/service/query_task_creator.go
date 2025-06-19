@@ -2,11 +2,14 @@ package service
 
 import (
 	"context"
+	"encoding/base64"
+	"encoding/json"
 	"fmt"
-	"regexp"
 	"strings"
 
 	"mysql-batch-tools/internal/model"
+	"mysql-batch-tools/internal/pkg/database"
+	"mysql-batch-tools/internal/pkg/sql_parse"
 
 	"gorm.io/gorm"
 )
@@ -35,7 +38,7 @@ func (s *QueryTaskCreatorService) Create(ctx context.Context, req *model.CreateQ
 	}
 
 	// 拆分SQL语句
-	sqlStatements, err := s.splitSQLStatements(req.SQLContent)
+	sqlStatements, err := sql_parse.SplitSQLStatements(req.SQLContent)
 	if err != nil {
 		return nil, fmt.Errorf("SQL语句拆分失败: %v", err)
 	}
@@ -78,8 +81,67 @@ func (s *QueryTaskCreatorService) Create(ctx context.Context, req *model.CreateQ
 			// 生成结果表名
 			resultTableName := s.generateResultTableName(task.ID, i+1)
 
-			// 推断表结构
-			tableSchema := s.inferTableSchema(sqlContent)
+			// 获取推断字段名，优先用请求参数第一个实例和数据库
+			var headers []string
+			if len(targetDBs) > 0 {
+				headers = s.inferTableSchemaWithInstance(sqlContent, targetDBs[0].InstanceID, targetDBs[0].DatabaseName)
+			} else {
+				headers = sql_parse.DetectResultHeaders(sqlContent)
+			}
+			tableFields := []model.TableField{
+				{Name: "query_task_execution_id", Type: "UINT", Comment: "主键ID"},
+				{Name: "query_task_execution_instance_id", Type: "UINT", Comment: "实例ID"},
+				{Name: "query_task_execution_instance_name", Type: "TEXT", Comment: "实例名称"},
+				{Name: "query_task_execution_database_name", Type: "TEXT", Comment: "数据库名称"},
+				{Name: "query_task_execution_error_message", Type: "TEXT", Comment: "错误信息"},
+			}
+			for i, h := range headers {
+				if h == "" {
+					h = "field_" + fmt.Sprint(i+1)
+				}
+				tableFields = append(tableFields, model.TableField{
+					Name:    h,
+					Type:    "TEXT",
+					Comment: "查询字段",
+				})
+			}
+			schema := model.TableSchema{Fields: tableFields}
+			schemaJSON, _ := schema.Value()
+			tableSchema := ""
+			if bytes, ok := schemaJSON.([]byte); ok {
+				tableSchema = string(bytes)
+			} else {
+				tableSchema = `{"fields":[{"name":"result","type":"TEXT","comment":"查询结果"}]}`
+			}
+
+			fmt.Println()
+			fmt.Println()
+			fmt.Println()
+			fmt.Println(tableSchema)
+			fmt.Println()
+			fmt.Println()
+
+			// 解析表结构字段
+			var schemaObj model.TableSchema
+			_ = json.Unmarshal([]byte(tableSchema), &schemaObj)
+			// 构建建表SQL
+			var cols []string
+			for _, f := range schemaObj.Fields {
+				b64 := base64.RawURLEncoding.EncodeToString([]byte(f.Name))
+				if f.Name == "query_task_execution_id" {
+					cols = append(cols, fmt.Sprintf("`%s` INTEGER PRIMARY KEY AUTOINCREMENT", b64))
+				} else {
+					typeStr := f.Type
+					if typeStr == "" {
+						typeStr = "TEXT"
+					}
+					cols = append(cols, fmt.Sprintf("`%s` %s", b64, typeStr))
+				}
+			}
+			createTableSQL := fmt.Sprintf("CREATE TABLE IF NOT EXISTS `%s` (%s)", resultTableName, strings.Join(cols, ", "))
+			if err := tx.Exec(createTableSQL).Error; err != nil {
+				return fmt.Errorf("建表失败: %v", err)
+			}
 
 			sqlRecord := &model.QueryTaskSQL{
 				TaskID:            task.ID,
@@ -94,6 +156,23 @@ func (s *QueryTaskCreatorService) Create(ctx context.Context, req *model.CreateQ
 
 			if err := tx.Create(sqlRecord).Error; err != nil {
 				return fmt.Errorf("创建SQL记录失败: %v", err)
+			}
+
+			// 新增：为每个目标数据库创建执行明细
+			var executions []model.QueryTaskExecution
+			for _, db := range targetDBs {
+				executions = append(executions, model.QueryTaskExecution{
+					TaskID:       task.ID,
+					SQLID:        sqlRecord.ID,
+					InstanceID:   db.InstanceID,
+					DatabaseName: db.DatabaseName,
+					Status:       0, // 待执行
+				})
+			}
+			if len(executions) > 0 {
+				if err := tx.Create(&executions).Error; err != nil {
+					return fmt.Errorf("创建SQL执行明细失败: %v", err)
+				}
 			}
 		}
 
@@ -192,192 +271,43 @@ func (s *QueryTaskCreatorService) fillInstanceNames(databases model.TaskDatabase
 	return databases
 }
 
-// splitSQLStatements 拆分SQL语句
-func (s *QueryTaskCreatorService) splitSQLStatements(sqlContent string) ([]string, error) {
-	// 移除注释
-	sqlContent = s.removeComments(sqlContent)
-
-	// 按分号拆分，但忽略字符串中的分号
-	statements := s.splitSQLBySemicolon(sqlContent)
-
-	// 过滤空语句
-	var result []string
-	for _, stmt := range statements {
-		stmt = strings.TrimSpace(stmt)
-		if stmt != "" {
-			result = append(result, stmt)
-		}
-	}
-
-	if len(result) == 0 {
-		return nil, fmt.Errorf("未找到有效的SQL语句")
-	}
-
-	return result, nil
-}
-
-// removeComments 移除SQL注释
-func (s *QueryTaskCreatorService) removeComments(sql string) string {
-	// 移除单行注释
-	singleLineComment := regexp.MustCompile(`--.*$`)
-	sql = singleLineComment.ReplaceAllString(sql, "")
-
-	// 移除多行注释
-	multiLineComment := regexp.MustCompile(`/\*.*?\*/`)
-	sql = multiLineComment.ReplaceAllString(sql, "")
-
-	return sql
-}
-
-// splitSQLBySemicolon 按分号拆分SQL，但忽略字符串中的分号
-func (s *QueryTaskCreatorService) splitSQLBySemicolon(sql string) []string {
-	var statements []string
-	var current strings.Builder
-	var inString bool
-	var stringChar byte
-
-	for i := 0; i < len(sql); i++ {
-		char := sql[i]
-
-		if !inString && (char == '\'' || char == '"') {
-			inString = true
-			stringChar = char
-			current.WriteByte(char)
-		} else if inString && char == stringChar {
-			// 检查是否为转义字符
-			if i > 0 && sql[i-1] == '\\' {
-				current.WriteByte(char)
-			} else {
-				inString = false
-				current.WriteByte(char)
-			}
-		} else if !inString && char == ';' {
-			statements = append(statements, current.String())
-			current.Reset()
-		} else {
-			current.WriteByte(char)
-		}
-	}
-
-	// 添加最后一个语句
-	if current.Len() > 0 {
-		statements = append(statements, current.String())
-	}
-
-	return statements
-}
-
 // generateResultTableName 生成结果表名
 func (s *QueryTaskCreatorService) generateResultTableName(taskID uint, sqlOrder int) string {
 	return fmt.Sprintf("task_%d_sql_%d_result", taskID, sqlOrder)
 }
 
-// inferTableSchema 推断表结构
-func (s *QueryTaskCreatorService) inferTableSchema(sqlContent string) string {
-	// 简化的表结构推断
-	// 这里可以根据SQL类型返回不同的默认结构
-	// 对于SELECT语句，可以尝试解析字段信息
-	// 目前返回一个通用的表结构模板
-
-	sqlUpper := strings.ToUpper(strings.TrimSpace(sqlContent))
-
-	if strings.HasPrefix(sqlUpper, "SELECT") {
-		// SELECT语句：尝试解析字段
-		return s.inferSelectTableSchema(sqlContent)
-	} else {
-		// 其他语句：返回通用结构
-		return s.getGenericTableSchema()
-	}
-}
-
-// inferSelectTableSchema 推断SELECT语句的表结构
-func (s *QueryTaskCreatorService) inferSelectTableSchema(sqlContent string) string {
-	// 简化的SELECT字段解析
-	// 这里可以实现更复杂的SQL解析逻辑
-
-	// 提取SELECT和FROM之间的内容
-	selectIndex := strings.Index(strings.ToUpper(sqlContent), "SELECT")
-	fromIndex := strings.Index(strings.ToUpper(sqlContent), "FROM")
-
-	if selectIndex == -1 || fromIndex == -1 || fromIndex <= selectIndex {
-		return s.getGenericTableSchema()
-	}
-
-	selectClause := sqlContent[selectIndex+6 : fromIndex]
-	fields := strings.Split(selectClause, ",")
-
-	var tableFields []model.TableField
-	for i, field := range fields {
-		field = strings.TrimSpace(field)
-		if field == "" {
-			continue
+// inferTableSchemaWithInstance 推断表结构
+func (s *QueryTaskCreatorService) inferTableSchemaWithInstance(sqlContent string, instanceID uint, dbName string) []string {
+	headers := sql_parse.DetectResultHeaders(sqlContent)
+	needRealCols := false
+	for _, h := range headers {
+		if strings.Contains(h, "*") {
+			needRealCols = true
+			break
 		}
-
-		// 提取字段名（去除别名）
-		fieldName := field
-		if asIndex := strings.Index(strings.ToUpper(field), " AS "); asIndex != -1 {
-			fieldName = strings.TrimSpace(field[:asIndex])
+	}
+	if needRealCols && instanceID > 0 && dbName != "" {
+		var instance model.Instance
+		if err := s.db.First(&instance, instanceID).Error; err == nil {
+			dbConn, err := database.NewMySQLGormDB(&instance, dbName, 2)
+			if err == nil {
+				sqlToExec := sqlContent
+				if !strings.Contains(strings.ToLower(sqlContent), "limit ") {
+					sqlToExec = sqlContent + " LIMIT 1"
+				}
+				rows, err := dbConn.Raw(sqlToExec).Rows()
+				if err == nil {
+					cols, err2 := rows.Columns()
+					if err2 == nil && len(cols) > 0 {
+						headers = []string{}
+						for _, c := range cols {
+							headers = append(headers, c)
+						}
+					}
+					rows.Close()
+				}
+			}
 		}
-
-		// 如果字段名包含表名，只取字段部分
-		if dotIndex := strings.LastIndex(fieldName, "."); dotIndex != -1 {
-			fieldName = fieldName[dotIndex+1:]
-		}
-
-		// 去除引号
-		fieldName = strings.Trim(fieldName, "`\"'")
-
-		if fieldName == "" {
-			fieldName = fmt.Sprintf("field_%d", i+1)
-		}
-
-		tableFields = append(tableFields, model.TableField{
-			Name:    fieldName,
-			Type:    "TEXT", // 默认类型
-			Comment: fmt.Sprintf("字段 %d", i+1),
-		})
 	}
-
-	if len(tableFields) == 0 {
-		return s.getGenericTableSchema()
-	}
-
-	schema := model.TableSchema{Fields: tableFields}
-	schemaJSON, err := schema.Value()
-	if err != nil {
-		return s.getGenericTableSchema()
-	}
-
-	// 将字节数组转换为字符串
-	if bytes, ok := schemaJSON.([]byte); ok {
-		return string(bytes)
-	}
-
-	return s.getGenericTableSchema()
-}
-
-// getGenericTableSchema 获取通用表结构
-func (s *QueryTaskCreatorService) getGenericTableSchema() string {
-	schema := model.TableSchema{
-		Fields: []model.TableField{
-			{
-				Name:    "result",
-				Type:    "TEXT",
-				Comment: "查询结果",
-			},
-		},
-	}
-	schemaJSON, err := schema.Value()
-	if err != nil {
-		// 如果序列化失败，返回一个简单的JSON字符串
-		return `{"fields":[{"name":"result","type":"TEXT","comment":"查询结果"}]}`
-	}
-
-	// 将字节数组转换为字符串
-	if bytes, ok := schemaJSON.([]byte); ok {
-		return string(bytes)
-	}
-
-	// 如果类型转换失败，返回默认JSON字符串
-	return `{"fields":[{"name":"result","type":"TEXT","comment":"查询结果"}]}`
+	return headers
 }

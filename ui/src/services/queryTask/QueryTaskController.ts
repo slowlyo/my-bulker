@@ -53,4 +53,11 @@ export async function getQueryTaskSQLs(taskId: number) {
     return request<Result_PageInfo_QueryTaskSQLInfo__>(`/api/query-tasks/${taskId}/sqls`, {
         method: 'GET',
     });
+}
+
+/** 获取查询任务SQL执行明细 GET /api/query-tasks/${taskId}/sqls/executions */
+export async function getQueryTaskSQLExecutions(taskId: number) {
+    return request<any>(`/api/query-tasks/${taskId}/sqls/executions`, {
+        method: 'GET',
+    });
 } 

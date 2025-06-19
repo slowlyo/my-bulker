@@ -1,52 +1,17 @@
-import React, { useState, useEffect } from 'react';
-import { Card, Collapse, Tag, Space, Spin, message } from 'antd';
+import React from 'react';
+import { Card, Collapse, Tag, Space } from 'antd';
 import { CodeOutlined, DatabaseOutlined, ClockCircleOutlined } from '@ant-design/icons';
-import { getQueryTaskSQLs } from '@/services/queryTask/QueryTaskController';
 import { QueryTaskSQLInfo } from '@/services/queryTask/typings';
 import { formatDateTime } from '@/utils/format';
 
 const { Panel } = Collapse;
 
 interface TaskSQLsProps {
-    taskId: number;
+    sqls: QueryTaskSQLInfo[];
 }
 
-const TaskSQLs: React.FC<TaskSQLsProps> = ({ taskId }) => {
-    const [sqls, setSqls] = useState<QueryTaskSQLInfo[]>([]);
-    const [loading, setLoading] = useState(true);
-
-    // 加载SQL语句列表
-    const loadSQLs = async () => {
-        setLoading(true);
-        try {
-            const res = await getQueryTaskSQLs(taskId);
-            if (res.code === 200) {
-                setSqls(res.data?.items || []);
-            } else {
-                message.error(res.message || '获取SQL语句列表失败');
-            }
-        } catch (error) {
-            message.error('获取SQL语句列表失败');
-        } finally {
-            setLoading(false);
-        }
-    };
-
-    useEffect(() => {
-        loadSQLs();
-    }, [taskId]);
-
-    if (loading) {
-        return (
-            <Card title="SQL语句" style={{ marginBottom: 16 }}>
-                <div style={{ textAlign: 'center', padding: '20px' }}>
-                    <Spin />
-                </div>
-            </Card>
-        );
-    }
-
-    if (sqls.length === 0) {
+const TaskSQLs: React.FC<TaskSQLsProps> = ({ sqls }) => {
+    if (!sqls || sqls.length === 0) {
         return (
             <Card title="SQL语句" style={{ marginBottom: 16 }}>
                 <div style={{ textAlign: 'center', padding: '20px', color: '#999' }}>
@@ -92,7 +57,7 @@ const TaskSQLs: React.FC<TaskSQLsProps> = ({ taskId }) => {
                         style={{ 
                             marginBottom: '8px',
                             border: '1px solid #e8e8e8',
-                            borderRadius: '6px',
+                            borderRadius: '8px',
                             background: '#fff'
                         }}
                     >
@@ -185,7 +150,7 @@ const TaskSQLs: React.FC<TaskSQLsProps> = ({ taskId }) => {
                 marginTop: '16px', 
                 padding: '12px', 
                 background: '#f8f9fa', 
-                borderRadius: '6px',
+                borderRadius: '8px',
                 fontSize: '12px',
                 color: '#666'
             }}>

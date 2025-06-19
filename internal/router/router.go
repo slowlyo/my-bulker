@@ -47,10 +47,12 @@ func Register(app *fiber.App) {
 		// 查询任务管理
 		queryTasks := api.Group("/query-tasks")
 		{
-			queryTasks.Post("", queryTaskHandler.Create)              // 创建查询任务
-			queryTasks.Get("", queryTaskHandler.List)                 // 获取查询任务列表
-			queryTasks.Get("/:id", queryTaskHandler.Get)              // 获取查询任务详情
-			queryTasks.Get("/:taskId/sqls", queryTaskHandler.GetSQLs) // 获取查询任务SQL语句列表
+			queryTasks.Post("", queryTaskHandler.Create)                                 // 创建查询任务
+			queryTasks.Get("", queryTaskHandler.List)                                    // 获取查询任务列表
+			queryTasks.Get("/:id", queryTaskHandler.Get)                                 // 获取查询任务详情
+			queryTasks.Get("/:taskId/sqls", queryTaskHandler.GetSQLs)                    // 获取查询任务SQL语句列表
+			queryTasks.Get(":taskId/sqls/executions", queryTaskHandler.GetSQLExecutions) // 获取SQL执行明细
+			queryTasks.Post(":id/run", queryTaskHandler.Run)                             // 运行查询任务
 		}
 	}
 }
