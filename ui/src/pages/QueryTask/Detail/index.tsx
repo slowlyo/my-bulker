@@ -1,15 +1,14 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { PageContainer } from '@ant-design/pro-components';
 import { Card, Descriptions, Tag, Space, Button, Spin, message, Tabs, Collapse, Tooltip } from 'antd';
 import { ArrowLeftOutlined, ReloadOutlined } from '@ant-design/icons';
 import { useParams, history, useLocation } from '@umijs/max';
-import { getQueryTaskDetail, getQueryTaskSQLExecutions, getQueryTaskSQLs } from '@/services/queryTask/QueryTaskController';
+import { getQueryTaskDetail, getQueryTaskSQLExecutions, getQueryTaskSQLs, runQueryTask, getQueryTaskSQLResult } from '@/services/queryTask/QueryTaskController';
 import { QueryTaskInfo } from '@/services/queryTask/typings';
 import { formatDateTime } from '@/utils/format';
 import ExecutionStats from './components/ExecutionStats';
 import TargetDatabases from './components/TargetDatabases';
 import TaskSQLs from './components/TaskSQLs';
-import QueryResultTable from './components/QueryResultTable';
 import QueryTaskBaseInfo from './components/QueryTaskBaseInfo';
 import QueryProgressPanel from './components/QueryProgressPanel';
 import QueryResultsPanel from './components/QueryResultsPanel';
@@ -31,6 +30,10 @@ const QueryTaskDetailPage: React.FC = () => {
     const [resultLoading, setResultLoading] = useState(false);
     const [activeSQL, setActiveSQL] = useState<any>(null); // 当前选中的SQL
     const [sqlList, setSqlList] = useState<any[]>([]); // 新增，保存带 schema 的 SQL 列表
+    const resultsPanelRef = useRef<any>();
+    const [stats, setStats] = useState<any>(null);
+    const firstLoading = useRef(true);
+    const [runBtnLoading, setRunBtnLoading] = useState(false);
 
     // hooks 逻辑
     useEffect(() => {
@@ -41,30 +44,51 @@ const QueryTaskDetailPage: React.FC = () => {
         });
     }, [location.search]);
 
+    // 公共加载方法
+    const loadAllData = async (isFirst = false) => {
+        if (isFirst) setLoading(true);
+        try {
+            const [detailRes, sqlsRes, execRes, statsRes] = await Promise.all([
+                getQueryTaskDetail(parseInt(id!)),
+                getQueryTaskSQLs(parseInt(id!)),
+                getQueryTaskSQLExecutions(parseInt(id!)),
+                fetch(`/api/query-tasks/${id}/execution-stats`).then(r => r.json()),
+            ]);
+            if (detailRes.code === 200) setTask(detailRes.data);
+            else message.error(detailRes.message || '获取任务详情失败');
+            if (sqlsRes.code === 200) setSqlList(sqlsRes.data?.items || []);
+            if (execRes.code === 200) setSqlExecutions(execRes.data || []);
+            if (statsRes.code === 200) setStats(statsRes.data);
+        } catch {
+            message.error('获取任务数据失败');
+        } finally {
+            if (isFirst) setLoading(false);
+        }
+    };
+
     useEffect(() => {
         if (!id) return;
-        setLoading(true);
-        // 并行获取任务详情、SQL列表、SQL执行明细
-        Promise.all([
-            getQueryTaskDetail(parseInt(id!)),
-            getQueryTaskSQLs(parseInt(id!)),
-            getQueryTaskSQLExecutions(parseInt(id!)),
-        ]).then(([detailRes, sqlsRes, execRes]) => {
-            if (detailRes.code === 200) {
-                setTask(detailRes.data);
-            } else {
-                message.error(detailRes.message || '获取任务详情失败');
-            }
-            if (sqlsRes.code === 200) {
-                setSqlList(sqlsRes.data?.items || []);
-            }
-            if (execRes.code === 200) {
-                setSqlExecutions(execRes.data || []);
-            }
-        }).catch(() => {
-            message.error('获取任务数据失败');
-        }).finally(() => setLoading(false));
+        firstLoading.current = true;
+        loadAllData(true).then(() => { firstLoading.current = false; });
     }, [id]);
+
+    // 轮询逻辑：查询中每1秒刷新一次
+    useEffect(() => {
+        if (!task || task.status !== 1) return;
+        const timer = setInterval(() => {
+            loadAllData(false);
+        }, 1000);
+        return () => clearInterval(timer);
+    }, [task && task.status]);
+
+    // 状态变为已完成时弹出提示
+    const prevStatusRef = useRef<number | undefined>();
+    useEffect(() => {
+        if (prevStatusRef.current === 1 && task && task.status === 2) {
+            message.success('任务已完成');
+        }
+        prevStatusRef.current = task?.status;
+    }, [task?.status]);
 
     useEffect(() => {
         if (activeTab === 'progress' && id) {
@@ -107,7 +131,6 @@ const QueryTaskDetailPage: React.FC = () => {
             </PageContainer>
         );
     }
-
     if (!task) {
         return (
             <PageContainer ghost>
@@ -142,8 +165,8 @@ const QueryTaskDetailPage: React.FC = () => {
         }
     };
 
-    // 获取结果数据的函数（需根据实际API调整）
-    const fetchResultData = async (sql: any) => {
+    // 获取结果数据的函数（对接API）
+    const fetchResultData = async (sql: any, page: number = 1, pageSize: number = 20) => {
         setResultLoading(true);
         try {
             // 查找 schema
@@ -152,8 +175,17 @@ const QueryTaskDetailPage: React.FC = () => {
                 ...sql,
                 result_table_schema: sqlWithSchema?.result_table_schema || '',
             });
-            // ...加载数据
+            // 查询结果表数据
+            const res = await getQueryTaskSQLResult(sql.id, { page, page_size: pageSize });
+            if (res.code === 200) {
+                setResultData(res.data?.items || []);
+            } else {
+                setResultData([]);
+                message.error(res.message || '查询结果加载失败');
+            }
+        } catch {
             setResultData([]);
+            message.error('查询结果加载失败');
         } finally {
             setResultLoading(false);
         }
@@ -176,7 +208,7 @@ const QueryTaskDetailPage: React.FC = () => {
             label: '查询进度',
             children: (
                 <>
-                    <ExecutionStats task={task} />
+                    {stats && <ExecutionStats stats={stats} />}
                     <QueryProgressPanel
                         task={task}
                         sqlExecutions={sqlExecutions}
@@ -191,14 +223,7 @@ const QueryTaskDetailPage: React.FC = () => {
             key: 'results',
             label: '查询结果',
             children: (
-                <QueryResultsPanel
-                    sqlExecutions={sqlExecutions}
-                    activeSQL={activeSQL}
-                    setActiveSQL={setActiveSQL}
-                    resultData={resultData}
-                    resultLoading={resultLoading}
-                    fetchResultData={fetchResultData}
-                />
+                <QueryResultsPanel sqls={sqlList} />
             ),
         },
     ];
@@ -212,21 +237,42 @@ const QueryTaskDetailPage: React.FC = () => {
                 extra: [
                     <Button
                         key="refresh"
-                        icon={<ReloadOutlined />}
-                        onClick={() => {
-                            setLoading(true);
-                            getQueryTaskDetail(parseInt(id!)).then(res => {
-                                if (res.code === 200) {
-                                    setTask(res.data);
-                                } else {
-                                    message.error(res.message || '获取任务详情失败');
-                                }
-                            }).catch(() => {
-                                message.error('获取任务详情失败');
-                            }).finally(() => setLoading(false));
+                        icon={<ReloadOutlined spin={loading} />}
+                        disabled={loading}
+                        onClick={async () => {
+                            await loadAllData();
+                            if (activeTab === 'results') {
+                                resultsPanelRef.current?.refresh();
+                            }
                         }}
                     >
                         刷新
+                    </Button>,
+                    <Button
+                        key="run"
+                        type="primary"
+                        disabled={task.status === 1}
+                        loading={runBtnLoading}
+                        onClick={async () => {
+                            if (!id) return;
+                            setRunBtnLoading(true);
+                            try {
+                                const res = await runQueryTask(parseInt(id!));
+                                if (res.code === 200) {
+                                    message.success(res.message || '任务已开始执行');
+                                    setActiveTab('progress');
+                                    await loadAllData(false);
+                                } else {
+                                    message.error(res.message || '任务启动失败');
+                                }
+                            } catch {
+                                message.error('任务启动失败');
+                            } finally {
+                                setRunBtnLoading(false);
+                            }
+                        }}
+                    >
+                        {task.status === 2 ? '再次查询' : task.status === 0 ? '开始查询' : task.status === 3 ? '重新查询' : '查询中...'}
                     </Button>,
                 ],
             }}

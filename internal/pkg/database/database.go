@@ -33,7 +33,7 @@ func Init() error {
 		dbPath := filepath.Join("./data", "app.db")
 		var err error
 		db, err = gorm.Open(sqlite.Open(dbPath), &gorm.Config{
-			Logger: logger.Default.LogMode(logger.Info), // 开启 SQL 日志
+			Logger: logger.Default.LogMode(logger.Error), // 开启 SQL 日志
 		})
 		if err != nil {
 			initErr = fmt.Errorf("failed to connect database: %v", err)

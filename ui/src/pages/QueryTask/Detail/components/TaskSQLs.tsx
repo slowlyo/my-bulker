@@ -24,43 +24,41 @@ const TaskSQLs: React.FC<TaskSQLsProps> = ({ sqls }) => {
     return (
         <Card title="SQL语句" style={{ marginBottom: 16 }}>
             <Collapse 
-                defaultActiveKey={['0']} 
+                defaultActiveKey={sqls.map((_, idx) => String(idx))} 
                 ghost
                 style={{ background: 'transparent' }}
-            >
-                {sqls.map((sql, index) => (
-                    <Panel
-                        key={index}
-                        header={
-                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                                <Space>
-                                    <CodeOutlined style={{ color: '#1890ff' }} />
-                                    <span style={{ fontWeight: '500' }}>
-                                        SQL #{sql.sql_order}
-                                    </span>
-                                    <Tag color="blue">{sql.result_table_name}</Tag>
-                                </Space>
-                                <Space size="small">
-                                    <span style={{ fontSize: '12px', color: '#666' }}>
-                                        <DatabaseOutlined style={{ marginRight: '4px' }} />
-                                        {sql.total_dbs} 个数据库
-                                    </span>
-                                    <span style={{ fontSize: '12px', color: '#52c41a' }}>
-                                        已完成: {sql.completed_dbs}
-                                    </span>
-                                    <span style={{ fontSize: '12px', color: '#ff4d4f' }}>
-                                        失败: {sql.failed_dbs}
-                                    </span>
-                                </Space>
-                            </div>
-                        }
-                        style={{ 
-                            marginBottom: '8px',
-                            border: '1px solid #e8e8e8',
-                            borderRadius: '8px',
-                            background: '#fff'
-                        }}
-                    >
+                items={sqls.map((sql, index) => ({
+                    key: String(index),
+                    label: (
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                            <Space>
+                                <CodeOutlined style={{ color: '#1890ff' }} />
+                                <span style={{ fontWeight: '500' }}>
+                                    SQL #{sql.sql_order}
+                                </span>
+                                <Tag color="blue">{sql.result_table_name}</Tag>
+                            </Space>
+                            <Space size="small">
+                                <span style={{ fontSize: '12px', color: '#666' }}>
+                                    <DatabaseOutlined style={{ marginRight: '4px' }} />
+                                    {sql.total_dbs} 个数据库
+                                </span>
+                                <span style={{ fontSize: '12px', color: '#52c41a' }}>
+                                    已完成: {sql.completed_dbs}
+                                </span>
+                                <span style={{ fontSize: '12px', color: '#ff4d4f' }}>
+                                    失败: {sql.failed_dbs}
+                                </span>
+                            </Space>
+                        </div>
+                    ),
+                    style: {
+                        marginBottom: '16px',
+                        border: '1px solid #e8e8e8',
+                        borderRadius: '8px',
+                        background: '#fff'
+                    },
+                    children: (
                         <div style={{ padding: '16px 0' }}>
                             {/* SQL内容 */}
                             <div style={{ marginBottom: '16px' }}>
@@ -142,9 +140,9 @@ const TaskSQLs: React.FC<TaskSQLsProps> = ({ sqls }) => {
                                 </div>
                             </div>
                         </div>
-                    </Panel>
-                ))}
-            </Collapse>
+                    )
+                }))}
+            />
             
             <div style={{ 
                 marginTop: '16px', 

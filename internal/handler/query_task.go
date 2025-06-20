@@ -2,6 +2,8 @@ package handler
 
 import (
 	"context"
+	"encoding/base64"
+	"encoding/json"
 	"mysql-batch-tools/internal/model"
 	"mysql-batch-tools/internal/pkg/database"
 	"mysql-batch-tools/internal/pkg/response"
@@ -142,14 +144,120 @@ func (h *QueryTaskHandler) Run(c *fiber.Ctx) error {
 		return response.Invalid(c, "无效的任务ID")
 	}
 	db := database.GetDB()
-	// 1. 立即将任务状态设为执行中
+	// 先查任务状态
+	var task model.QueryTask
+	if err := db.First(&task, id).Error; err != nil {
+		return response.Internal(c, "查询任务失败: "+err.Error())
+	}
+	if task.Status == 2 || task.Status == 3 {
+		runService := service.NewQueryTaskRunService(db)
+		if err := runService.ResetQueryTask(c.Context(), uint(id)); err != nil {
+			return response.Internal(c, "重置任务失败: "+err.Error())
+		}
+	}
+	// 立即将任务状态设为执行中
 	if err := db.Model(&model.QueryTask{}).Where("id = ?", id).Update("status", 1).Error; err != nil {
 		return response.Internal(c, "更新任务状态失败: "+err.Error())
 	}
-	// 2. 异步执行任务
+	// 异步执行任务
 	go func(taskID uint) {
 		runService := service.NewQueryTaskRunService(db)
 		_ = runService.Run(context.Background(), uint(taskID))
 	}(uint(id))
 	return response.Ok(c, "任务已开始执行")
+}
+
+// GetSQLResult 查询SQL结果表
+func (h *QueryTaskHandler) GetSQLResult(c *fiber.Ctx) error {
+	sqlIDStr := c.Params("sqlId")
+	sqlID, err := strconv.ParseUint(sqlIDStr, 10, 32)
+	if err != nil {
+		return response.Invalid(c, "无效的SQL ID")
+	}
+	// 可选参数
+	page, _ := strconv.Atoi(c.Query("page", "1"))
+	pageSize, _ := strconv.Atoi(c.Query("page_size", "20"))
+	if page < 1 {
+		page = 1
+	}
+	if pageSize < 1 || pageSize > 1000 {
+		pageSize = 20
+	}
+
+	db := database.GetDB()
+	// 查找SQL记录，获取表名和schema
+	var sqlRec model.QueryTaskSQL
+	if err := db.First(&sqlRec, sqlID).Error; err != nil {
+		return response.NotFound(c, "SQL记录不存在")
+	}
+	tableName := sqlRec.ResultTableName
+	schema := sqlRec.ResultTableSchema
+
+	// 构建查询
+	query := db.Table(tableName)
+	// 通用字段模糊筛选
+	for k, v := range c.Queries() {
+		if k == "page" || k == "page_size" || k == "order_by" || k == "order" {
+			continue
+		}
+		if v != "" {
+			query = query.Where("`"+encodeB64(k)+"` LIKE ?", "%"+v+"%")
+		}
+	}
+	// 排序
+	orderBy := c.Query("order_by")
+	order := c.Query("order")
+	if orderBy != "" && (order == "ascend" || order == "descend") {
+		orderStr := "ASC"
+		if order == "descend" {
+			orderStr = "DESC"
+		}
+		query = query.Order("`" + encodeB64(orderBy) + "` " + orderStr)
+	}
+	var total int64
+	query.Count(&total)
+	var rows []map[string]interface{}
+	query.Offset((page - 1) * pageSize).Limit(pageSize).Find(&rows)
+
+	// 字段名解码
+	var schemaObj model.TableSchema
+	_ = json.Unmarshal([]byte(schema), &schemaObj)
+	b64Map := map[string]string{}
+	for _, f := range schemaObj.Fields {
+		b64Map[encodeB64(f.Name)] = f.Name
+	}
+	for i := range rows {
+		for k, v := range rows[i] {
+			if orig, ok := b64Map[k]; ok {
+				rows[i][orig] = v
+				if orig != k {
+					delete(rows[i], k)
+				}
+			}
+		}
+	}
+	return response.Success(c, map[string]interface{}{
+		"total":  total,
+		"items":  rows,
+		"schema": schema,
+	})
+}
+
+// encodeB64 base64编码字段名
+func encodeB64(s string) string {
+	return base64.RawURLEncoding.EncodeToString([]byte(s))
+}
+
+// GetExecutionStats 获取任务执行统计信息
+func (h *QueryTaskHandler) GetExecutionStats(c *fiber.Ctx) error {
+	taskIDStr := c.Params("taskId")
+	taskID, err := strconv.ParseUint(taskIDStr, 10, 32)
+	if err != nil {
+		return response.Invalid(c, "无效的任务ID")
+	}
+	stats, err := h.service.GetExecutionStats(c.Context(), uint(taskID))
+	if err != nil {
+		return response.Internal(c, "获取执行统计失败")
+	}
+	return response.Success(c, stats)
 }

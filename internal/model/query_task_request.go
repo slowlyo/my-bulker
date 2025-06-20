@@ -47,19 +47,19 @@ type QueryTaskListResponse struct {
 
 // QueryTaskSQLResponse 查询任务SQL响应
 type QueryTaskSQLResponse struct {
-	ID                uint       `json:"id"`
-	CreatedAt         string     `json:"created_at"`
-	UpdatedAt         string     `json:"updated_at"`
-	TaskID            uint       `json:"task_id"`
-	SQLContent        string     `json:"sql_content"`
-	SQLOrder          int        `json:"sql_order"`
-	ResultTableName   string     `json:"result_table_name"`
-	ResultTableSchema string     `json:"result_table_schema"`
-	TotalDBs          int        `json:"total_dbs"`
-	CompletedDBs      int        `json:"completed_dbs"`
-	FailedDBs         int        `json:"failed_dbs"`
-	StartedAt         *time.Time `json:"started_at"`
-	CompletedAt       *time.Time `json:"completed_at"`
+	ID                uint   `json:"id"`
+	CreatedAt         string `json:"created_at"`
+	UpdatedAt         string `json:"updated_at"`
+	TaskID            uint   `json:"task_id"`
+	SQLContent        string `json:"sql_content"`
+	SQLOrder          int    `json:"sql_order"`
+	ResultTableName   string `json:"result_table_name"`
+	ResultTableSchema string `json:"result_table_schema"`
+	TotalDBs          int    `json:"total_dbs"`
+	CompletedDBs      int    `json:"completed_dbs"`
+	FailedDBs         int    `json:"failed_dbs"`
+	StartedAt         string `json:"started_at"`
+	CompletedAt       string `json:"completed_at"`
 }
 
 // QueryTaskSQLListResponse 查询任务SQL列表响应

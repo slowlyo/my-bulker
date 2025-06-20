@@ -1,12 +1,15 @@
 import React from 'react';
 import { Card } from 'antd';
-import { QueryTaskInfo } from '@/services/queryTask/typings';
 
 interface ExecutionStatsProps {
-    task: QueryTaskInfo;
+    stats: {
+        db: { total: number; completed: number; failed: number; pending: number };
+        sql: { total: number; completed: number; failed: number; pending: number };
+    };
 }
 
-const ExecutionStats: React.FC<ExecutionStatsProps> = ({ task }) => {
+const ExecutionStats: React.FC<ExecutionStatsProps> = ({ stats }) => {
+    const { db, sql } = stats;
     return (
         <Card title="执行统计" style={{ marginBottom: 16 }}>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
@@ -35,7 +38,7 @@ const ExecutionStats: React.FC<ExecutionStatsProps> = ({ task }) => {
                         }}>🗄️</span>
                         <div>
                             <div style={{ fontSize: '12px', color: '#666' }}>数据库</div>
-                            <div style={{ fontSize: '20px', fontWeight: '500', color: '#262626' }}>{task.total_dbs}</div>
+                            <div style={{ fontSize: '20px', fontWeight: '500', color: '#262626' }}>{db.total}</div>
                         </div>
                     </div>
                     
@@ -43,7 +46,7 @@ const ExecutionStats: React.FC<ExecutionStatsProps> = ({ task }) => {
                         <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
                             <span style={{ fontSize: '12px', color: '#666' }}>进度</span>
                             <span style={{ fontSize: '12px', color: '#666' }}>
-                                {task.total_dbs > 0 ? Math.round((task.completed_dbs / task.total_dbs) * 100) : 0}%
+                                {db.total > 0 ? Math.round((db.completed / db.total) * 100) : 0}%
                             </span>
                         </div>
                         <div style={{ 
@@ -54,7 +57,7 @@ const ExecutionStats: React.FC<ExecutionStatsProps> = ({ task }) => {
                             overflow: 'hidden'
                         }}>
                             <div style={{ 
-                                width: `${task.total_dbs > 0 ? (task.completed_dbs / task.total_dbs) * 100 : 0}%`,
+                                width: `${db.total > 0 ? (db.completed / db.total) * 100 : 0}%`,
                                 height: '100%',
                                 background: '#52c41a',
                                 borderRadius: '2px',
@@ -65,15 +68,15 @@ const ExecutionStats: React.FC<ExecutionStatsProps> = ({ task }) => {
                     
                     <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px' }}>
                         <div style={{ textAlign: 'center' }}>
-                            <div style={{ color: '#52c41a', fontWeight: '500' }}>{task.completed_dbs}</div>
+                            <div style={{ color: '#52c41a', fontWeight: '500' }}>{db.completed}</div>
                             <div style={{ color: '#666' }}>已完成</div>
                         </div>
                         <div style={{ textAlign: 'center' }}>
-                            <div style={{ color: '#ff4d4f', fontWeight: '500' }}>{task.failed_dbs}</div>
+                            <div style={{ color: '#ff4d4f', fontWeight: '500' }}>{db.failed}</div>
                             <div style={{ color: '#666' }}>失败</div>
                         </div>
                         <div style={{ textAlign: 'center' }}>
-                            <div style={{ color: '#666', fontWeight: '500' }}>{task.total_dbs - task.completed_dbs - task.failed_dbs}</div>
+                            <div style={{ color: '#666', fontWeight: '500' }}>{db.pending}</div>
                             <div style={{ color: '#666' }}>待执行</div>
                         </div>
                     </div>
@@ -104,7 +107,7 @@ const ExecutionStats: React.FC<ExecutionStatsProps> = ({ task }) => {
                         }}>⚡</span>
                         <div>
                             <div style={{ fontSize: '12px', color: '#666' }}>SQL语句</div>
-                            <div style={{ fontSize: '20px', fontWeight: '500', color: '#262626' }}>{task.total_sqls}</div>
+                            <div style={{ fontSize: '20px', fontWeight: '500', color: '#262626' }}>{sql.total}</div>
                         </div>
                     </div>
                     
@@ -112,7 +115,7 @@ const ExecutionStats: React.FC<ExecutionStatsProps> = ({ task }) => {
                         <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
                             <span style={{ fontSize: '12px', color: '#666' }}>进度</span>
                             <span style={{ fontSize: '12px', color: '#666' }}>
-                                {task.total_sqls > 0 ? Math.round((task.completed_sqls / task.total_sqls) * 100) : 0}%
+                                {sql.total > 0 ? Math.round((sql.completed / sql.total) * 100) : 0}%
                             </span>
                         </div>
                         <div style={{ 
@@ -123,7 +126,7 @@ const ExecutionStats: React.FC<ExecutionStatsProps> = ({ task }) => {
                             overflow: 'hidden'
                         }}>
                             <div style={{ 
-                                width: `${task.total_sqls > 0 ? (task.completed_sqls / task.total_sqls) * 100 : 0}%`,
+                                width: `${sql.total > 0 ? (sql.completed / sql.total) * 100 : 0}%`,
                                 height: '100%',
                                 background: '#52c41a',
                                 borderRadius: '2px',
@@ -134,15 +137,15 @@ const ExecutionStats: React.FC<ExecutionStatsProps> = ({ task }) => {
                     
                     <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px' }}>
                         <div style={{ textAlign: 'center' }}>
-                            <div style={{ color: '#52c41a', fontWeight: '500' }}>{task.completed_sqls}</div>
+                            <div style={{ color: '#52c41a', fontWeight: '500' }}>{sql.completed}</div>
                             <div style={{ color: '#666' }}>已完成</div>
                         </div>
                         <div style={{ textAlign: 'center' }}>
-                            <div style={{ color: '#ff4d4f', fontWeight: '500' }}>{task.failed_sqls}</div>
+                            <div style={{ color: '#ff4d4f', fontWeight: '500' }}>{sql.failed}</div>
                             <div style={{ color: '#666' }}>失败</div>
                         </div>
                         <div style={{ textAlign: 'center' }}>
-                            <div style={{ color: '#666', fontWeight: '500' }}>{task.total_sqls - task.completed_sqls - task.failed_sqls}</div>
+                            <div style={{ color: '#666', fontWeight: '500' }}>{sql.pending}</div>
                             <div style={{ color: '#666' }}>待执行</div>
                         </div>
                     </div>

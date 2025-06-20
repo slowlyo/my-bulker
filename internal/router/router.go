@@ -14,6 +14,7 @@ func Register(app *fiber.App) {
 	instanceHandler := handler.NewInstanceHandler()
 	databaseHandler := handler.NewDatabaseHandler()
 	queryTaskHandler := handler.NewQueryTaskHandler()
+	sqlHandler := handler.NewSQLHandler()
 
 	// 全局中间件
 	app.Use(middleware.CORS())
@@ -40,19 +41,24 @@ func Register(app *fiber.App) {
 		// 数据库管理
 		databases := api.Group("/databases")
 		{
-			databases.Get("", databaseHandler.List)    // 获取数据库列表
-			databases.Get("/:id", databaseHandler.Get) // 获取数据库详情
+			databases.Get("", databaseHandler.List)                  // 获取数据库列表
+			databases.Get("/:id", databaseHandler.Get)               // 获取数据库详情
+			databases.Post("/batch-list", databaseHandler.BatchList) // 批量查询数据库
 		}
 
 		// 查询任务管理
 		queryTasks := api.Group("/query-tasks")
 		{
-			queryTasks.Post("", queryTaskHandler.Create)                                 // 创建查询任务
-			queryTasks.Get("", queryTaskHandler.List)                                    // 获取查询任务列表
-			queryTasks.Get("/:id", queryTaskHandler.Get)                                 // 获取查询任务详情
-			queryTasks.Get("/:taskId/sqls", queryTaskHandler.GetSQLs)                    // 获取查询任务SQL语句列表
-			queryTasks.Get(":taskId/sqls/executions", queryTaskHandler.GetSQLExecutions) // 获取SQL执行明细
-			queryTasks.Post(":id/run", queryTaskHandler.Run)                             // 运行查询任务
+			queryTasks.Post("", queryTaskHandler.Create)                                  // 创建查询任务
+			queryTasks.Get("", queryTaskHandler.List)                                     // 获取查询任务列表
+			queryTasks.Get("/:id", queryTaskHandler.Get)                                  // 获取查询任务详情
+			queryTasks.Get("/:taskId/sqls", queryTaskHandler.GetSQLs)                     // 获取查询任务SQL语句列表
+			queryTasks.Get(":taskId/sqls/executions", queryTaskHandler.GetSQLExecutions)  // 获取SQL执行明细
+			queryTasks.Post(":id/run", queryTaskHandler.Run)                              // 运行查询任务
+			queryTasks.Get("/sqls/:sqlId/results", queryTaskHandler.GetSQLResult)         // 查询SQL结果表
+			queryTasks.Get(":taskId/execution-stats", queryTaskHandler.GetExecutionStats) // 查询任务执行统计
 		}
+
+		api.Post("/sql/validate", sqlHandler.Validate) // SQL合法性校验
 	}
 }

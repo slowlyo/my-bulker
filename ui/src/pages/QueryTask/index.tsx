@@ -82,26 +82,44 @@ const QueryTaskPage: React.FC = () => {
             dataIndex: 'total_dbs',
             hideInSearch: true,
             width: 120,
-            render: (_, record) => (
-                <Space direction="vertical" size="small">
-                    <span>总数: {record.total_dbs}</span>
-                    <span className='text-green-500'>已完成: {record.completed_dbs}</span>
-                    <span className='text-red-500'>失败: {record.failed_dbs}</span>
-                </Space>
-            ),
+            render: (_, record) => {
+                const showStats = (record.completed_dbs > 0 || record.failed_dbs > 0);
+                return (
+                    <Space direction="vertical" size="small">
+                        <span>总数: {record.total_dbs}</span>
+                        {showStats && (
+                            <>
+                                <span className='text-green-500'>已完成: {record.completed_dbs}</span>
+                                <span className={record.failed_dbs > 0 ? 'text-red-500' : 'text-gray-400'}>
+                                    失败: {record.failed_dbs}
+                                </span>
+                            </>
+                        )}
+                    </Space>
+                );
+            },
         },
         {
             title: 'SQL统计',
             dataIndex: 'total_sqls',
             hideInSearch: true,
             width: 120,
-            render: (_, record) => (
-                <Space direction="vertical" size="small">
-                    <span>总数: {record.total_sqls}</span>
-                    <span className='text-green-500'>已完成: {record.completed_sqls}</span>
-                    <span className='text-red-500'>失败: {record.failed_sqls}</span>
-                </Space>
-            ),
+            render: (_, record) => {
+                const showStats = (record.completed_sqls > 0 || record.failed_sqls > 0);
+                return (
+                    <Space direction="vertical" size="small">
+                        <span>总数: {record.total_sqls}</span>
+                        {showStats && (
+                            <>
+                                <span className='text-green-500'>已完成: {record.completed_sqls}</span>
+                                <span className={record.failed_sqls > 0 ? 'text-red-500' : 'text-gray-400'}>
+                                    失败: {record.failed_sqls}
+                                </span>
+                            </>
+                        )}
+                    </Space>
+                );
+            },
         },
         {
             title: '开始时间',

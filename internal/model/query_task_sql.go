@@ -10,21 +10,23 @@ import (
 
 // QueryTaskSQL 查询任务SQL
 type QueryTaskSQL struct {
-	ID        uint           `gorm:"primarykey" json:"id"`
-	CreatedAt time.Time      `json:"created_at"`
-	UpdatedAt time.Time      `json:"updated_at"`
-	DeletedAt gorm.DeletedAt `gorm:"index" json:"-"`
+	ID        uint           `gorm:"primarykey;column:id" json:"id"`
+	CreatedAt time.Time      `gorm:"column:created_at" json:"created_at"`
+	UpdatedAt time.Time      `gorm:"column:updated_at" json:"updated_at"`
+	DeletedAt gorm.DeletedAt `gorm:"index;column:deleted_at" json:"-"`
 
-	TaskID            uint       `gorm:"not null;comment:任务ID" json:"task_id"`
-	SQLContent        string     `gorm:"type:text;not null;comment:SQL语句内容" json:"sql_content"`
-	SQLOrder          int        `gorm:"not null;comment:SQL执行顺序" json:"sql_order"`
-	ResultTableName   string     `gorm:"size:100;not null;comment:结果集表名" json:"result_table_name"`
-	ResultTableSchema string     `gorm:"type:text;not null;comment:结果集表结构(JSON格式)" json:"result_table_schema"`
-	TotalDBs          int        `gorm:"not null;default:0;comment:数据库总数" json:"total_dbs"`
-	CompletedDBs      int        `gorm:"not null;default:0;comment:已完成数据库数" json:"completed_dbs"`
-	FailedDBs         int        `gorm:"not null;default:0;comment:失败数据库数" json:"failed_dbs"`
-	StartedAt         *time.Time `gorm:"comment:开始执行时间" json:"started_at"`
-	CompletedAt       *time.Time `gorm:"comment:完成时间" json:"completed_at"`
+	TaskID            uint       `gorm:"not null;column:task_id;comment:任务ID" json:"task_id"`
+	SQLContent        string     `gorm:"type:text;not null;column:sql_content;comment:SQL语句内容" json:"sql_content"`
+	SQLOrder          int        `gorm:"not null;column:sql_order;comment:SQL执行顺序" json:"sql_order"`
+	ResultTableName   string     `gorm:"size:100;not null;column:result_table_name;comment:结果集表名" json:"result_table_name"`
+	ResultTableSchema string     `gorm:"type:text;not null;column:result_table_schema;comment:结果集表结构(JSON格式)" json:"result_table_schema"`
+	TotalDBs          int        `gorm:"not null;default:0;column:total_dbs;comment:数据库总数" json:"total_dbs"`
+	CompletedDBs      int        `gorm:"not null;default:0;column:completed_dbs;comment:已完成数据库数" json:"completed_dbs"`
+	FailedDBs         int        `gorm:"not null;default:0;column:failed_dbs;comment:失败数据库数" json:"failed_dbs"`
+	CompletedSQLs     int        `gorm:"not null;default:0;column:completed_sqls;comment:已完成SQL数" json:"completed_sqls"`
+	FailedSQLs        int        `gorm:"not null;default:0;column:failed_sqls;comment:失败SQL数" json:"failed_sqls"`
+	StartedAt         *time.Time `gorm:"column:started_at;comment:开始执行时间" json:"started_at"`
+	CompletedAt       *time.Time `gorm:"column:completed_at;comment:完成时间" json:"completed_at"`
 
 	// 关联
 	Task       QueryTask            `gorm:"foreignKey:TaskID" json:"task,omitempty"`

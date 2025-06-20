@@ -133,8 +133,14 @@ func (s *QueryTaskService) GetSQLs(ctx context.Context, taskID uint) (*model.Que
 			TotalDBs:          sql.TotalDBs,
 			CompletedDBs:      sql.CompletedDBs,
 			FailedDBs:         sql.FailedDBs,
-			StartedAt:         sql.StartedAt,
-			CompletedAt:       sql.CompletedAt,
+			StartedAt:         "",
+			CompletedAt:       "",
+		}
+		if sql.StartedAt != nil {
+			items[i].StartedAt = sql.StartedAt.Format(time.RFC3339)
+		}
+		if sql.CompletedAt != nil {
+			items[i].CompletedAt = sql.CompletedAt.Format(time.RFC3339)
 		}
 	}
 
@@ -215,4 +221,67 @@ func getSQLIDs(sqls []model.QueryTaskSQL) []uint {
 		ids = append(ids, s.ID)
 	}
 	return ids
+}
+
+// GetExecutionStats 获取任务执行统计信息（高效聚合版，db/sql都只查一次）
+func (s *QueryTaskService) GetExecutionStats(ctx context.Context, taskID uint) (map[string]interface{}, error) {
+	// 1. DB维度统计（一次聚合）
+	type dbStat struct {
+		Total     int64
+		Completed int64
+		Failed    int64
+		Pending   int64
+	}
+	var dbStats dbStat
+	s.db.Raw(`
+		SELECT COUNT(*) AS total,
+		SUM(CASE WHEN status = 2 THEN 1 ELSE 0 END) AS completed,
+		SUM(CASE WHEN status = 3 THEN 1 ELSE 0 END) AS failed,
+		SUM(CASE WHEN status IN (0,1) THEN 1 ELSE 0 END) AS pending
+		FROM query_task_executions WHERE task_id = ?
+	`, taskID).Scan(&dbStats)
+
+	// 2. SQL维度统计（一次聚合+Go处理）
+	type sqlAgg struct {
+		SQLID     uint
+		Total     int64
+		Completed int64
+		Failed    int64
+	}
+	var sqlAggs []sqlAgg
+	s.db.Raw(`
+		SELECT sql_id AS sql_id,
+		COUNT(*) AS total,
+		SUM(CASE WHEN status = 2 THEN 1 ELSE 0 END) AS completed,
+		SUM(CASE WHEN status = 3 THEN 1 ELSE 0 END) AS failed
+		FROM query_task_executions WHERE task_id = ? GROUP BY sql_id
+	`, taskID).Scan(&sqlAggs)
+	totalSQL := int64(len(sqlAggs))
+	completedSQL := int64(0)
+	failedSQL := int64(0)
+	pendingSQL := int64(0)
+	for _, agg := range sqlAggs {
+		if agg.Total > 0 && agg.Completed == agg.Total {
+			completedSQL++
+		} else if agg.Failed > 0 {
+			failedSQL++
+		} else {
+			pendingSQL++
+		}
+	}
+
+	return map[string]interface{}{
+		"db": map[string]int64{
+			"total":     dbStats.Total,
+			"completed": dbStats.Completed,
+			"failed":    dbStats.Failed,
+			"pending":   dbStats.Pending,
+		},
+		"sql": map[string]int64{
+			"total":     totalSQL,
+			"completed": completedSQL,
+			"failed":    failedSQL,
+			"pending":   pendingSQL,
+		},
+	}, nil
 }

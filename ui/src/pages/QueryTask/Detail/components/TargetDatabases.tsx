@@ -39,8 +39,8 @@ const TargetDatabases: React.FC<TargetDatabasesProps> = ({ databases }) => {
         <Card title="目标数据库" style={{ marginBottom: 16 }}>
             <div style={{ 
                 display: 'grid', 
-                gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', 
-                gap: '12px',
+                gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))',
+                gap: '8px',
                 maxHeight: '400px',
                 overflow: 'auto',
                 paddingRight: '4px'
@@ -51,7 +51,7 @@ const TargetDatabases: React.FC<TargetDatabasesProps> = ({ databases }) => {
                         style={{
                             border: '1px solid #e8e8e8',
                             borderRadius: '8px',
-                            padding: '12px',
+                            padding: '8px',
                             background: '#fff',
                             transition: 'all 0.2s ease',
                             cursor: 'pointer',
@@ -65,18 +65,18 @@ const TargetDatabases: React.FC<TargetDatabasesProps> = ({ databases }) => {
                             e.currentTarget.style.boxShadow = 'none';
                         }}
                     >
-                        <div style={{ display: 'flex', alignItems: 'center', marginBottom: '8px' }}>
-                            <DatabaseOutlined style={{ color: '#1890ff', marginRight: '8px' }} />
+                        <div style={{ display: 'flex', alignItems: 'center', marginBottom: '6px' }}>
+                            <DatabaseOutlined style={{ color: '#1890ff', marginRight: '6px', fontSize: '15px' }} />
                             <div style={{ flex: 1 }}>
-                                <div style={{ fontSize: '14px', fontWeight: '500', color: '#262626' }}>
+                                <div style={{ fontSize: '13px', fontWeight: '500', color: '#262626' }}>
                                     {db.database_name}
                                 </div>
                             </div>
                         </div>
                         
-                        <div style={{ display: 'flex', alignItems: 'center', marginBottom: '8px' }}>
-                            <ClusterOutlined style={{ color: '#666', marginRight: '6px', fontSize: '12px' }} />
-                            <span style={{ fontSize: '12px', color: '#666' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', marginBottom: '4px' }}>
+                            <ClusterOutlined style={{ color: '#666', marginRight: '4px', fontSize: '11px' }} />
+                            <span style={{ fontSize: '11px', color: '#666' }}>
                                 {db.instance_name}
                             </span>
                         </div>
@@ -86,10 +86,10 @@ const TargetDatabases: React.FC<TargetDatabasesProps> = ({ databases }) => {
             
             <div style={{ 
                 marginTop: '16px', 
-                padding: '12px', 
+                padding: '8px',
                 background: '#f8f9fa', 
                 borderRadius: '8px',
-                fontSize: '12px',
+                fontSize: '11px',
                 color: '#666'
             }}>
                 <Space>

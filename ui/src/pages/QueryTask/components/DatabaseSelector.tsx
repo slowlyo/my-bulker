@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Select, Spin, Empty, Space, Button } from 'antd';
-import { queryDatabaseList } from '@/services/database/DatabaseController';
+import { queryDatabaseList, batchQueryDatabaseList } from '@/services/database/DatabaseController';
 import { TaskDatabase } from '@/services/queryTask/typings';
 
 interface DatabaseSelectorProps {
@@ -34,29 +34,20 @@ const DatabaseSelector: React.FC<DatabaseSelectorProps> = ({
         const loadDatabases = async () => {
             setLoading(true);
             try {
-                // 为每个实例ID分别获取数据库列表
-                const allDatabases: Array<{
-                    id: number;
-                    name: string;
-                    instance_id: number;
-                    instance?: { name: string };
-                }> = [];
-                
-                for (const instanceId of instanceIds) {
-                    const res = await queryDatabaseList({
-                        instance_id: instanceId,
-                        page: 1,
-                        pageSize: 1000, // 获取所有数据库
-                    });
-                    
-                    if (res.code === 200 && res.data) {
-                        allDatabases.push(...(res.data.items || []));
-                    }
+                const res = await batchQueryDatabaseList(instanceIds);
+                if (res.code === 200 && res.data) {
+                    setDatabases(res.data.map((item: any) => ({
+                        id: 0, // 无需ID
+                        name: item.database_name,
+                        instance_id: item.instance_id,
+                        instance: { name: item.instance_name },
+                    })));
+                } else {
+                    setDatabases([]);
                 }
-                
-                setDatabases(allDatabases);
             } catch (error) {
                 console.error('加载数据库数据失败:', error);
+                setDatabases([]);
             } finally {
                 setLoading(false);
             }

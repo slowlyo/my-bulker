@@ -60,4 +60,27 @@ export async function getQueryTaskSQLExecutions(taskId: number) {
     return request<any>(`/api/query-tasks/${taskId}/sqls/executions`, {
         method: 'GET',
     });
+}
+
+/** 开始查询任务 POST /api/query-tasks/${id}/run */
+export async function runQueryTask(id: number) {
+    return request<any>(`/api/query-tasks/${id}/run`, {
+        method: 'POST',
+    });
+}
+
+/** 查询SQL结果表 GET /api/query-tasks/sqls/${sqlId}/results */
+export async function getQueryTaskSQLResult(sqlId: number, params?: { page?: number; page_size?: number; instance_id?: string; database_name?: string }) {
+    return request<any>(`/api/query-tasks/sqls/${sqlId}/results`, {
+        method: 'GET',
+        params,
+    });
+}
+
+/** 校验SQL合法性 POST /api/sql/validate */
+export async function validateSQL(sql: string) {
+    return request<any>('/api/sql/validate', {
+        method: 'POST',
+        data: { sql },
+    });
 } 

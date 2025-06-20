@@ -4,6 +4,7 @@ import { CreateQueryTaskRequest } from '@/services/queryTask/typings';
 import { getInstanceOptions } from '@/services/instance/InstanceController';
 import DatabaseSelector from './DatabaseSelector';
 import SQLEditor from './SQLEditor';
+import { validateSQL } from '@/services/queryTask/QueryTaskController';
 
 const { TextArea } = Input;
 const { Option } = Select;
@@ -101,9 +102,22 @@ const CreateTaskForm: React.FC<CreateTaskFormProps> = ({
     const handleSubmit = async () => {
         try {
             const values = await form.validateFields();
+            // 新增：先校验SQL合法性
+            const sqlContent = values.sql_content;
+            const validateRes = await validateSQL(sqlContent);
+            if (!validateRes || validateRes.code !== 200 || !validateRes.data?.valid) {
+                throw new Error(validateRes?.data?.error || validateRes?.message || 'SQL语句校验失败');
+            }
             await onSubmit(values);
-        } catch (error) {
+        } catch (error: any) {
+            // eslint-disable-next-line no-console
             console.error('表单验证失败:', error);
+            if (error.message) {
+                form.setFields([{
+                    name: 'sql_content',
+                    errors: [error.message],
+                }]);
+            }
         }
     };
 
