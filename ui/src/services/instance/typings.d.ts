@@ -32,6 +32,8 @@ export interface InstanceInfo {
   remark: string;
   created_at: string;
   updated_at: string;
+  sync_interval: number;
+  last_sync_at?: string | null;
 }
 
 export interface InstanceInfoVO {
@@ -42,4 +44,11 @@ export interface InstanceInfoVO {
   password?: string;
   params: Array<Record<string, string>>;
   remark: string;
+  sync_interval: number;
+}
+
+export interface APIResponse<T> {
+  code: number;
+  message: string;
+  data: T;
 } 

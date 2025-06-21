@@ -4,6 +4,7 @@ import (
 	"log"
 	"my-bulker/internal/pkg/database"
 	"my-bulker/internal/router"
+	"my-bulker/internal/service"
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/fiber/v2/middleware/logger"
@@ -16,6 +17,11 @@ func NewApp() *fiber.App {
 	if err := database.Init(); err != nil {
 		log.Fatalf("Failed to initialize database: %v", err)
 	}
+
+	// 启动调度服务
+	simpleSchedulerSvc := service.NewSimpleSchedulerService()
+	go simpleSchedulerSvc.Start()
+	// defer simpleSchedulerSvc.Stop() // Graceful shutdown should be handled.
 
 	// 创建 Fiber 应用实例
 	app := fiber.New(fiber.Config{

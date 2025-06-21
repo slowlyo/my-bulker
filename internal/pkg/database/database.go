@@ -1,13 +1,18 @@
 package database
 
 import (
+	"database/sql"
 	"fmt"
+	"net/url"
 	"os"
 	"path/filepath"
+	"strings"
 	"sync"
+	"time"
 
 	"my-bulker/internal/model"
 
+	_ "github.com/go-sql-driver/mysql"
 	"gorm.io/driver/mysql"
 	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
@@ -81,6 +86,7 @@ func Init() error {
 			&model.QueryTask{},          // 查询任务表（无依赖）
 			&model.QueryTaskSQL{},       // 查询任务SQL表（依赖 QueryTask）
 			&model.QueryTaskExecution{}, // 任务执行表（依赖 QueryTask、QueryTaskSQL、Instance）
+			&model.Config{},             // 配置表（无依赖）
 		); err != nil {
 			initErr = fmt.Errorf("failed to migrate database: %v", err)
 			return
@@ -95,15 +101,51 @@ func GetDB() *gorm.DB {
 	return db
 }
 
-// NewMySQLGormDB 根据实例信息创建 MySQL gorm.DB 连接
-func NewMySQLGormDB(instance *model.Instance, dbName string, maxConn int) (*gorm.DB, error) {
-	dsn := fmt.Sprintf("%s:%s@tcp(%s:%d)/%s?charset=utf8mb4&parseTime=True&loc=Local",
+// buildDSN 构建MySQL数据源名称 (DSN)
+func buildDSN(instance *model.Instance, dbName string) string {
+	// 基础DSN
+	baseDSN := fmt.Sprintf("%s:%s@tcp(%s:%d)/",
 		instance.Username,
 		instance.Password,
 		instance.Host,
 		instance.Port,
-		dbName,
 	)
+	// 数据库名称
+	if dbName != "" {
+		baseDSN += dbName
+	}
+	// 固定参数
+	dsn := baseDSN + "?charset=utf8mb4&parseTime=True&loc=Local"
+
+	// 添加额外参数
+	if len(instance.Params) > 0 {
+		extraParams := make([]string, 0, len(instance.Params))
+		for _, paramMap := range instance.Params {
+			for key, value := range paramMap {
+				extraParams = append(extraParams, fmt.Sprintf("%s=%s", url.QueryEscape(key), url.QueryEscape(value)))
+			}
+		}
+		dsn += "&" + strings.Join(extraParams, "&")
+	}
+
+	return dsn
+}
+
+// NewMySQLDB 根据实例信息创建 MySQL sql.DB 连接
+func NewMySQLDB(instance *model.Instance) (*sql.DB, error) {
+	dsn := buildDSN(instance, "") // 不指定数据库
+	db, err := sql.Open("mysql", dsn)
+	if err != nil {
+		return nil, fmt.Errorf("连接数据库失败 [%s]: %v", instance.Name, err)
+	}
+	// 设置连接超时
+	db.SetConnMaxLifetime(time.Second * 5)
+	return db, nil
+}
+
+// NewMySQLGormDB 根据实例信息创建 MySQL gorm.DB 连接
+func NewMySQLGormDB(instance *model.Instance, dbName string, maxConn int) (*gorm.DB, error) {
+	dsn := buildDSN(instance, dbName)
 	db, err := gorm.Open(mysql.Open(dsn), &gorm.Config{
 		Logger: logger.Default.LogMode(logger.Silent),
 	})

@@ -1,9 +1,12 @@
 package handler
 
 import (
+	"bytes"
 	"context"
 	"encoding/base64"
+	"encoding/csv"
 	"encoding/json"
+	"fmt"
 	"my-bulker/internal/model"
 	"my-bulker/internal/pkg/database"
 	"my-bulker/internal/pkg/response"
@@ -243,6 +246,118 @@ func (h *QueryTaskHandler) GetSQLResult(c *fiber.Ctx) error {
 	})
 }
 
+// ExportSQLResult 导出SQL结果表为CSV
+func (h *QueryTaskHandler) ExportSQLResult(c *fiber.Ctx) error {
+	sqlIDStr := c.Params("sqlId")
+	sqlID, err := strconv.ParseUint(sqlIDStr, 10, 32)
+	if err != nil {
+		return response.Invalid(c, "无效的SQL ID")
+	}
+
+	db := database.GetDB()
+	// 查找SQL记录，获取表名和schema
+	var sqlRec model.QueryTaskSQL
+	if err := db.First(&sqlRec, sqlID).Error; err != nil {
+		return response.NotFound(c, "SQL记录不存在")
+	}
+	tableName := sqlRec.ResultTableName
+	schemaStr := sqlRec.ResultTableSchema
+
+	// 解析 schema
+	var schemaObj model.TableSchema
+	if err := json.Unmarshal([]byte(schemaStr), &schemaObj); err != nil {
+		return response.Internal(c, "解析表结构失败: "+err.Error())
+	}
+
+	// 构建查询
+	query := db.Table(tableName)
+
+	// 应用通用字段模糊筛选
+	for k, v := range c.Queries() {
+		if k == "page" || k == "page_size" || k == "order_by" || k == "order" {
+			continue
+		}
+		if v != "" {
+			query = query.Where("`"+encodeB64(k)+"` LIKE ?", "%"+v+"%")
+		}
+	}
+
+	// 应用排序
+	orderBy := c.Query("order_by")
+	order := c.Query("order")
+	if orderBy != "" && (order == "ascend" || order == "descend") {
+		orderStr := "ASC"
+		if order == "descend" {
+			orderStr = "DESC"
+		}
+		query = query.Order("`" + encodeB64(orderBy) + "` " + orderStr)
+	}
+
+	// 获取所有行，不分页
+	var rows []map[string]interface{}
+	if err := query.Find(&rows).Error; err != nil {
+		return response.Internal(c, "查询数据库失败: "+err.Error())
+	}
+
+	// 字段名解码映射
+	b64Map := map[string]string{}
+	for _, f := range schemaObj.Fields {
+		b64Map[encodeB64(f.Name)] = f.Name
+	}
+
+	// 创建CSV
+	var buf bytes.Buffer
+	writer := csv.NewWriter(&buf)
+
+	// 写入BOM头，防止Excel打开中文乱码
+	buf.WriteString("\xEF\xBB\xBF")
+
+	// 写入表头
+	headers := make([]string, len(schemaObj.Fields))
+	for i, f := range schemaObj.Fields {
+		headers[i] = f.Name
+	}
+	if err := writer.Write(headers); err != nil {
+		return response.Internal(c, "写入CSV表头失败: "+err.Error())
+	}
+
+	// 写入数据行
+	record := make([]string, len(schemaObj.Fields))
+	for _, row := range rows {
+		// 解码行数据
+		decodedRow := make(map[string]interface{})
+		for k, v := range row {
+			if orig, ok := b64Map[k]; ok {
+				decodedRow[orig] = v
+			}
+		}
+
+		// 按表头顺序填充记录
+		for i, field := range schemaObj.Fields {
+			if val, ok := decodedRow[field.Name]; ok {
+				record[i] = fmt.Sprintf("%v", val)
+			} else {
+				record[i] = ""
+			}
+		}
+		if err := writer.Write(record); err != nil {
+			return response.Internal(c, "写入CSV行数据失败: "+err.Error())
+		}
+	}
+
+	writer.Flush()
+	if err := writer.Error(); err != nil {
+		return response.Internal(c, "刷新CSV写入器失败: "+err.Error())
+	}
+
+	// 设置响应头并发送文件
+	fileName := fmt.Sprintf("task_%d_sql_%d_results.csv", sqlRec.TaskID, sqlRec.ID)
+	c.Set(fiber.HeaderContentDisposition, "attachment; filename="+fileName)
+	c.Set(fiber.HeaderContentType, "text/csv")
+
+	return c.Send(buf.Bytes())
+}
+
 // encodeB64 base64编码字段名
 func encodeB64(s string) string {
 	return base64.RawURLEncoding.EncodeToString([]byte(s))
@@ -260,4 +375,42 @@ func (h *QueryTaskHandler) GetExecutionStats(c *fiber.Ctx) error {
 		return response.Internal(c, "获取执行统计失败")
 	}
 	return response.Success(c, stats)
+}
+
+// ToggleFavoriteStatus 切换任务常用状态
+func (h *QueryTaskHandler) ToggleFavoriteStatus(c *fiber.Ctx) error {
+	idStr := c.Params("id")
+	id, err := strconv.ParseUint(idStr, 10, 32)
+	if err != nil {
+		return response.Invalid(c, "无效的任务ID")
+	}
+
+	if err := h.service.ToggleFavoriteStatus(c.Context(), uint(id)); err != nil {
+		return response.Internal(c, "切换常用状态失败: "+err.Error())
+	}
+
+	return response.Ok(c, "切换成功")
+}
+
+// BatchDeleteTasksRequest 批量删除任务请求
+type BatchDeleteTasksRequest struct {
+	TaskIDs []uint `json:"task_ids"`
+}
+
+// BatchDeleteTasks 批量删除任务
+func (h *QueryTaskHandler) BatchDeleteTasks(c *fiber.Ctx) error {
+	var req BatchDeleteTasksRequest
+	if err := c.BodyParser(&req); err != nil {
+		return response.Invalid(c, "无效的请求参数")
+	}
+
+	if len(req.TaskIDs) == 0 {
+		return response.Invalid(c, "任务ID列表不能为空")
+	}
+
+	if err := h.service.BatchDeleteTasks(c.Context(), req.TaskIDs); err != nil {
+		return response.Internal(c, "批量删除任务失败: "+err.Error())
+	}
+
+	return response.Ok(c, "批量删除成功")
 }

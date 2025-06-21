@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"fmt"
 	"time"
 
 	"my-bulker/internal/model"
@@ -47,6 +48,7 @@ func (s *QueryTaskService) Get(ctx context.Context, id uint) (*model.QueryTaskRe
 		StartedAt:     task.StartedAt,
 		CompletedAt:   task.CompletedAt,
 		Description:   task.Description,
+		IsFavorite:    task.IsFavorite,
 	}
 
 	return response, nil
@@ -65,6 +67,9 @@ func (s *QueryTaskService) List(ctx context.Context, req *model.QueryTaskListReq
 	}
 	if req.Status != nil {
 		query = query.Where("status = ?", *req.Status)
+	}
+	if req.IsFavorite != nil {
+		query = query.Where("is_favorite = ?", *req.IsFavorite)
 	}
 
 	// 应用排序条件
@@ -101,6 +106,7 @@ func (s *QueryTaskService) List(ctx context.Context, req *model.QueryTaskListReq
 			StartedAt:     task.StartedAt,
 			CompletedAt:   task.CompletedAt,
 			Description:   task.Description,
+			IsFavorite:    task.IsFavorite,
 		}
 	}
 
@@ -284,4 +290,55 @@ func (s *QueryTaskService) GetExecutionStats(ctx context.Context, taskID uint) (
 			"pending":   pendingSQL,
 		},
 	}, nil
+}
+
+// ToggleFavoriteStatus 切换任务的常用状态
+func (s *QueryTaskService) ToggleFavoriteStatus(ctx context.Context, taskID uint) error {
+	var task model.QueryTask
+	if err := s.db.WithContext(ctx).First(&task, taskID).Error; err != nil {
+		if err == gorm.ErrRecordNotFound {
+			return fmt.Errorf("任务不存在")
+		}
+		return err
+	}
+
+	// 切换状态
+	return s.db.WithContext(ctx).Model(&task).Update("is_favorite", !task.IsFavorite).Error
+}
+
+// BatchDeleteTasks 批量删除任务及其所有相关数据
+func (s *QueryTaskService) BatchDeleteTasks(ctx context.Context, taskIDs []uint) error {
+	return s.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		// 1. 查找所有要删除任务的SQL记录，以获取结果表名
+		var sqls []model.QueryTaskSQL
+		if err := tx.Where("task_id IN ?", taskIDs).Find(&sqls).Error; err != nil {
+			return fmt.Errorf("查找任务SQL失败: %w", err)
+		}
+
+		// 2. 删除所有相关的执行记录
+		if err := tx.Where("task_id IN ?", taskIDs).Delete(&model.QueryTaskExecution{}).Error; err != nil {
+			return fmt.Errorf("删除任务执行记录失败: %w", err)
+		}
+
+		// 3. 删除所有相关的SQL记录
+		if err := tx.Where("task_id IN ?", taskIDs).Delete(&model.QueryTaskSQL{}).Error; err != nil {
+			return fmt.Errorf("删除任务SQL记录失败: %w", err)
+		}
+
+		// 4. 删除任务记录本身
+		if err := tx.Where("id IN ?", taskIDs).Delete(&model.QueryTask{}).Error; err != nil {
+			return fmt.Errorf("删除任务记录失败: %w", err)
+		}
+
+		// 5. 最后，在事务中删除所有结果表
+		for _, sql := range sqls {
+			if sql.ResultTableName != "" {
+				if err := tx.Exec("DROP TABLE IF EXISTS `" + sql.ResultTableName + "`").Error; err != nil {
+					return fmt.Errorf("删除结果表 %s 失败: %w", sql.ResultTableName, err)
+				}
+			}
+		}
+
+		return nil
+	})
 }

@@ -223,7 +223,7 @@ const QueryTaskDetailPage: React.FC = () => {
             key: 'results',
             label: '查询结果',
             children: (
-                <QueryResultsPanel sqls={sqlList} />
+                <QueryResultsPanel sqls={sqlList} ref={resultsPanelRef} />
             ),
         },
     ];

@@ -8,6 +8,7 @@ type QueryTaskListRequest struct {
 	Sorting    `query:""` // 嵌入排序参数
 	TaskName   string     `query:"task_name" json:"task_name"` // 任务名称（模糊查询）
 	Status     *int8      `query:"status" json:"status"`       // 任务状态
+	IsFavorite *bool      `query:"is_favorite" json:"is_favorite"`
 }
 
 // CreateQueryTaskRequest 创建查询任务请求
@@ -37,6 +38,7 @@ type QueryTaskResponse struct {
 	StartedAt     *time.Time `json:"started_at"`
 	CompletedAt   *time.Time `json:"completed_at"`
 	Description   string     `json:"description"`
+	IsFavorite    bool       `json:"is_favorite"`
 }
 
 // QueryTaskListResponse 查询任务列表响应

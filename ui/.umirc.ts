@@ -60,6 +60,12 @@ export default defineConfig({
             component: "./QueryTask/Detail",
             hideInMenu: true,
         },
+        {
+            name: "系统配置",
+            path: "/config",
+            component: "./Config",
+            icon: "SettingOutlined",
+        },
     ],
 
     npmClient: "pnpm",

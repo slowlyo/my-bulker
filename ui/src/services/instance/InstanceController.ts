@@ -1,5 +1,5 @@
 import { request } from '@umijs/max';
-import { InstanceInfo, InstanceInfoVO, Result_InstanceInfo_, Result_PageInfo_InstanceInfo__, Result_string_ } from './typings';
+import { InstanceInfo, InstanceInfoVO, Result_InstanceInfo_, Result_PageInfo_InstanceInfo__, Result_string_, APIResponse } from './typings';
 
 /** 获取实例列表 GET /api/instances */
 export async function queryInstanceList(
@@ -100,7 +100,8 @@ export async function testConnection(
     host: string;
     port: number;
     username: string;
-    password: string;
+    password?: string;
+    params?: Array<Record<string, string>>;
   },
   options?: { [key: string]: any },
 ) {
@@ -137,7 +138,7 @@ export interface InstanceOption {
 }
 
 export async function getInstanceOptions() {
-    return request<API.Response<InstanceOption[]>>('/api/instances/options', {
+    return request<APIResponse<InstanceOption[]>>('/api/instances/options', {
         method: 'GET',
     });
 } 

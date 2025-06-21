@@ -23,6 +23,9 @@ type Instance struct {
 	Version  string         `gorm:"size:50;column:version;comment:数据库版本" json:"version"`
 	Params   InstanceParams `gorm:"type:text;column:params;comment:额外参数" json:"params"`
 	Remark   string         `gorm:"size:500;column:remark;comment:备注" json:"remark"`
+
+	SyncInterval int        `gorm:"column:sync_interval;comment:同步间隔(分钟), 0表示禁用" json:"sync_interval"`
+	LastSyncAt   *time.Time `gorm:"column:last_sync_at;comment:上次同步时间" json:"last_sync_at"`
 }
 
 // InstanceParams 实例额外参数
@@ -40,4 +43,17 @@ func (p *InstanceParams) Scan(value interface{}) error {
 		return nil
 	}
 	return json.Unmarshal(bytes, p)
+}
+
+// ExportInstancesRequest 导出实例请求
+type ExportInstancesRequest struct {
+	InstanceIDs []uint `json:"instance_ids"`
+}
+
+// ImportSummary 导入结果摘要
+type ImportSummary struct {
+	Succeeded int      `json:"succeeded"`
+	Failed    int      `json:"failed"`
+	Skipped   int      `json:"skipped"`
+	Errors    []string `json:"errors"`
 }

@@ -1,112 +1,109 @@
-import { Button, Drawer, Form, Input, InputNumber, Space, message } from 'antd';
+import { Drawer, Form, Input, InputNumber, Space, Button, message, Select, InputRef } from 'antd';
 import { MinusCircleOutlined, PlusOutlined } from '@ant-design/icons';
-import { InstanceInfo } from '@/services/instance/typings';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
+import { InstanceInfo, InstanceInfoVO } from '@/services/instance/typings';
 import { testConnection } from '@/services/instance/InstanceController';
 
 interface InstanceFormProps {
     visible: boolean;
     onClose: () => void;
-    onSubmit: (values: any) => Promise<void>;
+    onSubmit: (values: InstanceInfoVO) => Promise<boolean | void>;
     editingInstance: InstanceInfo | null;
 }
 
-const InstanceForm: React.FC<InstanceFormProps> = ({
-    visible,
-    onClose,
-    onSubmit,
-    editingInstance,
-}) => {
+const syncIntervalOptions = [
+    { label: '关闭', value: 0 },
+    { label: '每 5 分钟', value: 5 },
+    { label: '每 10 分钟', value: 10 },
+    { label: '每 30 分钟', value: 30 },
+    { label: '每小时', value: 60 },
+    { label: '每天', value: 1440 },
+];
+
+const InstanceForm: React.FC<InstanceFormProps> = ({ visible, onClose, onSubmit, editingInstance }) => {
     const [form] = Form.useForm();
     const [testing, setTesting] = useState(false);
+    const firstInputRef = useRef<InputRef>(null);
 
-    // 监听 visible 和 editingInstance 的变化，重置表单
     useEffect(() => {
         if (visible) {
-            form.setFieldsValue(editingInstance ? {
-                name: editingInstance.name,
-                host: editingInstance.host,
-                port: editingInstance.port,
-                username: editingInstance.username,
-                params: editingInstance.params.map(param => {
+            if (editingInstance) {
+                const params = editingInstance.params?.map(param => {
                     const [[key, value]] = Object.entries(param);
                     return { key, value };
-                }),
-                remark: editingInstance.remark
-            } : {
-                port: 3306,
-                params: []
-            });
-        } else {
-            form.resetFields();
+                }) || [];
+                form.setFieldsValue({ ...editingInstance, params });
+            } else {
+                form.resetFields();
+                form.setFieldsValue({ port: 3306, sync_interval: 0 });
+            }
+            setTimeout(() => firstInputRef.current?.focus(), 100);
         }
     }, [visible, editingInstance, form]);
 
     const handleTestConnection = async () => {
         try {
-            const values = await form.validateFields(['host', 'port', 'username', 'password']);
-            
-            // 在编辑模式下，如果密码为空，提示用户需要输入密码
+            await form.validateFields(['host', 'port', 'username', 'password']);
+            const values = form.getFieldsValue();
+
             if (editingInstance && !values.password) {
                 message.warning('请输入密码以测试连接');
                 return;
             }
-            
             setTesting(true);
-            const res = await testConnection(values);
+
+            const paramsObject = values.params?.map((item: any) => ({ [item.key]: item.value })) || [];
+            const res = await testConnection({
+                host: values.host,
+                port: values.port,
+                username: values.username,
+                password: values.password || '',
+                params: paramsObject,
+            });
+
             if (res.code === 200) {
-                message.success('连接测试成功');
+                message.success('连接成功');
             } else {
-                message.error(res.message || '连接测试失败');
+                message.error(res.message || '连接失败');
             }
-        } catch (error: any) {
-            message.error(error.message || '连接测试失败');
+        } catch (error) {
+            // Validation failed
         } finally {
             setTesting(false);
         }
     };
 
     const handleSubmit = async () => {
+        setTesting(true);
         try {
             const values = await form.validateFields();
-            
-            // 在编辑模式下，如果密码为空，则跳过连接测试
+            const paramsObject = values.params?.map((item: any) => ({ [item.key]: item.value })) || [];
+
             if (!editingInstance || values.password) {
-                // 先测试连接
-                setTesting(true);
                 const testRes = await testConnection({
                     host: values.host,
                     port: values.port,
                     username: values.username,
-                    password: values.password,
+                    password: values.password || '',
+                    params: paramsObject,
                 });
                 if (testRes.code !== 200) {
-                    message.error(testRes.message || '连接测试失败');
+                    message.error(`连接测试失败: ${testRes.message}`);
+                    setTesting(false);
                     return;
                 }
-                setTesting(false);
             }
 
-            // 将 params 数组转换为对象格式
-            const paramsArray = values.params || [];
-            const params = paramsArray.map((item: { key: string; value: string }) => ({
-                [item.key]: item.value
-            }));
+            const finalValues = { ...values, params: paramsObject };
 
-            // 在编辑模式下，如果密码为空，则不包含密码字段
-            const submitData = {
-                ...values,
-                params,
-            };
-            
-            // 在编辑模式下，如果密码为空，则删除密码字段
             if (editingInstance && !values.password) {
-                delete submitData.password;
+                delete (finalValues as any).password;
             }
 
-            await onSubmit(submitData);
-        } catch (error: any) {
-            message.error(error.message || '操作失败');
+            await onSubmit(finalValues);
+            onClose();
+        } catch (error) {
+            // Validation failed
         } finally {
             setTesting(false);
         }
@@ -114,124 +111,70 @@ const InstanceForm: React.FC<InstanceFormProps> = ({
 
     return (
         <Drawer
-            title={editingInstance ? '编辑实例' : '新建实例'}
-            open={visible}
-            onClose={onClose}
+            title={editingInstance ? '编辑实例' : '新增实例'}
             width={600}
+            onClose={onClose}
+            open={visible}
+            bodyStyle={{ paddingBottom: 80 }}
             extra={
                 <Space>
-                    <Button onClick={onClose}>
-                        取消
-                    </Button>
-                    <Button type="primary" onClick={handleSubmit} loading={testing}>
-                        确定
+                    <Button onClick={onClose}>取消</Button>
+                    <Button onClick={handleSubmit} type="primary" loading={testing}>
+                        提交
                     </Button>
                 </Space>
             }
         >
-            <Form
-                form={form}
-                layout="vertical"
-            >
-                <Form.Item
-                    name="name"
-                    label="实例名称"
-                    rules={[{ required: true, message: '请输入实例名称' }]}
-                >
-                    <Input placeholder="请输入实例名称" />
+            <Form form={form} layout="vertical">
+                <Form.Item name="name" label="实例名称" rules={[{ required: true, message: '请输入实例名称' }]}>
+                    <Input ref={firstInputRef} placeholder="请输入实例名称" />
                 </Form.Item>
                 <Form.Item label="连接信息" required>
                     <Space.Compact style={{ width: '100%' }}>
-                        <Form.Item
-                            name="host"
-                            noStyle
-                            rules={[{ required: true, message: '请输入主机地址' }]}
-                        >
-                            <Input placeholder="请输入主机地址" />
+                        <Form.Item name="host" noStyle rules={[{ required: true, message: '请输入主机地址' }]}>
+                            <Input placeholder="主机地址" />
                         </Form.Item>
-                        <Form.Item
-                            name="port"
-                            noStyle
-                            rules={[
-                                { required: true, message: '请输入端口' },
-                                { type: 'number', min: 1, max: 65535, message: '端口范围为1-65535' }
-                            ]}
-                        >
-                            <InputNumber 
-                                placeholder="端口" 
-                                style={{ width: '120px' }}
-                            />
+                        <Form.Item name="port" noStyle rules={[{ required: true, message: '请输入端口' }]}>
+                            <InputNumber placeholder="端口" style={{ width: '120px' }} />
                         </Form.Item>
                     </Space.Compact>
                 </Form.Item>
-                <Form.Item
-                    name="username"
-                    label="用户名"
-                    rules={[{ required: true, message: '请输入用户名' }]}
-                >
+                <Form.Item name="username" label="用户名" rules={[{ required: true, message: '请输入用户名' }]}>
                     <Input placeholder="请输入用户名" />
                 </Form.Item>
-                <Form.Item
-                    name="password"
-                    label="密码"
-                    rules={[
-                        { 
-                            required: !editingInstance, 
-                            message: '请输入密码' 
-                        }
-                    ]}
-                    tooltip={editingInstance ? "留空则不修改密码" : undefined}
-                >
+                <Form.Item name="password" label="密码" rules={[{ required: !editingInstance, message: '请输入密码' }]} tooltip={editingInstance ? "留空则不修改密码" : ""}>
                     <Input.Password placeholder={editingInstance ? "留空则不修改密码" : "请输入密码"} />
                 </Form.Item>
                 <Form.Item>
-                    <Button 
-                        onClick={handleTestConnection} 
-                        loading={testing}
-                    >
-                        测试连接
-                    </Button>
+                    <Button onClick={handleTestConnection} loading={testing}>测试连接</Button>
                 </Form.Item>
-                <Form.Item
-                    label="额外参数"
-                    tooltip="可以添加额外的连接参数"
-                >
+                <Form.Item label="额外参数" tooltip="可以添加额外的连接参数">
                     <Form.List name="params">
                         {(fields, { add, remove }) => (
                             <>
                                 {fields.map(({ key, name, ...restField }) => (
                                     <Space key={key} style={{ display: 'flex', marginBottom: 8 }} align="baseline">
-                                        <Form.Item
-                                            {...restField}
-                                            name={[name, 'key']}
-                                            rules={[{ required: true, message: '请输入参数名' }]}
-                                        >
+                                        <Form.Item {...restField} name={[name, 'key']} rules={[{ required: true, message: '请输入参数名' }]}>
                                             <Input placeholder="参数名" />
                                         </Form.Item>
-                                        <Form.Item
-                                            {...restField}
-                                            name={[name, 'value']}
-                                            rules={[{ required: true, message: '请输入参数值' }]}
-                                        >
+                                        <Form.Item {...restField} name={[name, 'value']} rules={[{ required: true, message: '请输入参数值' }]}>
                                             <Input placeholder="参数值" />
                                         </Form.Item>
                                         <MinusCircleOutlined onClick={() => remove(name)} />
                                     </Space>
                                 ))}
                                 <Form.Item>
-                                    <Button type="dashed" onClick={() => add()} block icon={<PlusOutlined />}>
-                                        添加参数
-                                    </Button>
+                                    <Button type="dashed" onClick={() => add()} block icon={<PlusOutlined />}>添加参数</Button>
                                 </Form.Item>
                             </>
                         )}
                     </Form.List>
                 </Form.Item>
-                <Form.Item
-                    name="remark"
-                    label="备注"
-                >
-                    <Input.TextArea placeholder="请输入备注" />
+                <Form.Item name="remark" label="备注">
+                    <Input.TextArea rows={3} placeholder="请输入备注" />
+                </Form.Item>
+                <Form.Item name="sync_interval" label="定时同步频率" help="设置实例下所有数据库的自动同步频率" initialValue={0}>
+                    <Select options={syncIntervalOptions} />
                 </Form.Item>
             </Form>
         </Drawer>

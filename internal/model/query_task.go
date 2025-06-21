@@ -27,6 +27,7 @@ type QueryTask struct {
 	StartedAt     *time.Time `gorm:"column:started_at;comment:开始执行时间" json:"started_at"`
 	CompletedAt   *time.Time `gorm:"column:completed_at;comment:完成时间" json:"completed_at"`
 	Description   string     `gorm:"type:text;column:description;comment:任务描述" json:"description"`
+	IsFavorite    bool       `gorm:"default:false;column:is_favorite;comment:是否为常用任务" json:"is_favorite"`
 
 	// 关联
 	SQLs []QueryTaskSQL `gorm:"foreignKey:TaskID" json:"sqls,omitempty"`

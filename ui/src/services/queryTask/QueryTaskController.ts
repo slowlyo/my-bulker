@@ -17,6 +17,8 @@ export async function queryQueryTaskList(
         sort_field?: string;
         /** 排序方向 */
         sort_order?: string;
+        /** 是否仅看常用 */
+        is_favorite?: boolean;
     },
     options?: { [key: string]: any },
 ) {
@@ -82,5 +84,28 @@ export async function validateSQL(sql: string) {
     return request<any>('/api/sql/validate', {
         method: 'POST',
         data: { sql },
+    });
+}
+
+/** 批量删除查询任务 DELETE /api/query-tasks */
+export async function batchDeleteQueryTasks(
+    taskIds: number[],
+    options?: { [key: string]: any },
+) {
+    return request<any>('/api/query-tasks', {
+        method: 'DELETE',
+        data: { task_ids: taskIds },
+        ...(options || {}),
+    });
+}
+
+/** 切换任务常用状态 POST /api/query-tasks/:id/toggle-favorite */
+export async function toggleFavoriteStatus(
+    taskId: number,
+    options?: { [key: string]: any },
+) {
+    return request<any>(`/api/query-tasks/${taskId}/toggle-favorite`, {
+        method: 'POST',
+        ...(options || {}),
     });
 } 

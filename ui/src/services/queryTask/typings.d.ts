@@ -31,6 +31,7 @@ export interface QueryTaskInfo {
     started_at?: string;
     completed_at?: string;
     description: string;
+    is_favorite: boolean;
 }
 
 // 创建查询任务相关类型

@@ -112,17 +112,18 @@ func (h *InstanceHandler) List(c *fiber.Ctx) error {
 // TestConnection 测试数据库连接
 func (h *InstanceHandler) TestConnection(c *fiber.Ctx) error {
 	var req struct {
-		Host     string `json:"host"`
-		Port     int    `json:"port"`
-		Username string `json:"username"`
-		Password string `json:"password"`
+		Host     string               `json:"host"`
+		Port     int                  `json:"port"`
+		Username string               `json:"username"`
+		Password string               `json:"password"`
+		Params   model.InstanceParams `json:"params"`
 	}
 
 	if err := c.BodyParser(&req); err != nil {
 		return response.Invalid(c, "无效的请求数据")
 	}
 
-	if err := h.service.TestConnection(req.Host, req.Port, req.Username, req.Password); err != nil {
+	if err := h.service.TestConnection(req.Host, req.Port, req.Username, req.Password, req.Params); err != nil {
 		return response.Invalid(c, err.Error())
 	}
 
@@ -151,4 +152,40 @@ func (h *InstanceHandler) SyncDatabases(c *fiber.Ctx) error {
 	}
 
 	return response.Ok(c, "同步数据库成功")
+}
+
+// ExportInstances 导出实例配置
+func (h *InstanceHandler) ExportInstances(c *fiber.Ctx) error {
+	var req model.ExportInstancesRequest
+	if err := c.BodyParser(&req); err != nil {
+		return response.Invalid(c, "无效的请求数据")
+	}
+
+	instances, err := h.service.ExportInstances(req.InstanceIDs)
+	if err != nil {
+		return response.Internal(c, "导出实例配置失败")
+	}
+
+	return response.Success(c, instances)
+}
+
+// ImportInstances 导入实例配置
+func (h *InstanceHandler) ImportInstances(c *fiber.Ctx) error {
+	file, err := c.FormFile("file")
+	if err != nil {
+		return response.Invalid(c, "请上传配置文件")
+	}
+
+	fileContent, err := file.Open()
+	if err != nil {
+		return response.Internal(c, "读取文件失败")
+	}
+	defer fileContent.Close()
+
+	summary, err := h.service.ImportInstances(fileContent)
+	if err != nil {
+		return response.Internal(c, fmt.Sprintf("导入失败: %v", err))
+	}
+
+	return response.Success(c, summary)
 }

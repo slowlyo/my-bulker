@@ -3,8 +3,10 @@ package service
 import (
 	"context"
 	"database/sql"
+	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"my-bulker/internal/model"
 	"my-bulker/internal/pkg/database"
 	"time"
@@ -46,20 +48,21 @@ func (s *InstanceService) Create(req *model.CreateInstanceRequest) (*model.Insta
 	}
 
 	// 获取数据库版本
-	version, err := s.getMySQLVersion(req.Host, req.Port, req.Username, req.Password)
+	version, err := s.getMySQLVersion(req.Host, req.Port, req.Username, req.Password, req.Params)
 	if err != nil {
 		return nil, err
 	}
 
 	instance := &model.Instance{
-		Name:     req.Name,
-		Host:     req.Host,
-		Port:     req.Port,
-		Username: req.Username,
-		Password: req.Password,
-		Params:   req.Params,
-		Remark:   req.Remark,
-		Version:  version,
+		Name:         req.Name,
+		Host:         req.Host,
+		Port:         req.Port,
+		Username:     req.Username,
+		Password:     req.Password,
+		Params:       req.Params,
+		Remark:       req.Remark,
+		Version:      version,
+		SyncInterval: req.SyncInterval,
 	}
 
 	if err := database.GetDB().Create(instance).Error; err != nil {
@@ -87,10 +90,10 @@ func (s *InstanceService) Update(id uint, req *model.UpdateInstanceRequest) (*mo
 		passwordToUse = instance.Password
 	}
 
-	// 如果连接信息发生变化，重新获取版本
+	// 如果连接信息或参数发生变化，重新获取版本
 	if instance.Host != req.Host || instance.Port != req.Port ||
-		instance.Username != req.Username || instance.Password != passwordToUse {
-		version, err := s.getMySQLVersion(req.Host, req.Port, req.Username, passwordToUse)
+		instance.Username != req.Username || instance.Password != passwordToUse || !s.areParamsEqual(instance.Params, req.Params) {
+		version, err := s.getMySQLVersion(req.Host, req.Port, req.Username, passwordToUse, req.Params)
 		if err != nil {
 			return nil, err
 		}
@@ -101,6 +104,7 @@ func (s *InstanceService) Update(id uint, req *model.UpdateInstanceRequest) (*mo
 	instance.Host = req.Host
 	instance.Port = req.Port
 	instance.Username = req.Username
+	instance.SyncInterval = req.SyncInterval
 	// 只有当密码不为空时才更新密码
 	if req.Password != "" {
 		instance.Password = req.Password
@@ -127,18 +131,26 @@ func (s *InstanceService) Get(id uint) (*model.InstanceResponse, error) {
 		return nil, err
 	}
 
+	var lastSyncAt *string
+	if instance.LastSyncAt != nil {
+		formattedTime := instance.LastSyncAt.Format(time.RFC3339)
+		lastSyncAt = &formattedTime
+	}
+
 	// 转换为响应格式
 	return &model.InstanceResponse{
-		ID:        instance.ID,
-		CreatedAt: instance.CreatedAt.Format(time.RFC3339),
-		UpdatedAt: instance.UpdatedAt.Format(time.RFC3339),
-		Name:      instance.Name,
-		Host:      instance.Host,
-		Port:      instance.Port,
-		Username:  instance.Username,
-		Version:   instance.Version,
-		Params:    instance.Params,
-		Remark:    instance.Remark,
+		ID:           instance.ID,
+		CreatedAt:    instance.CreatedAt.Format(time.RFC3339),
+		UpdatedAt:    instance.UpdatedAt.Format(time.RFC3339),
+		Name:         instance.Name,
+		Host:         instance.Host,
+		Port:         instance.Port,
+		Username:     instance.Username,
+		Version:      instance.Version,
+		Params:       instance.Params,
+		Remark:       instance.Remark,
+		SyncInterval: instance.SyncInterval,
+		LastSyncAt:   lastSyncAt,
 	}, nil
 }
 
@@ -184,17 +196,24 @@ func (s *InstanceService) List(req *model.InstanceListRequest) (*model.InstanceL
 	// 转换为响应格式
 	items := make([]model.InstanceResponse, len(instances))
 	for i, instance := range instances {
+		var lastSyncAt *string
+		if instance.LastSyncAt != nil {
+			formattedTime := instance.LastSyncAt.Format(time.RFC3339)
+			lastSyncAt = &formattedTime
+		}
 		items[i] = model.InstanceResponse{
-			ID:        instance.ID,
-			CreatedAt: instance.CreatedAt.Format(time.RFC3339),
-			UpdatedAt: instance.UpdatedAt.Format(time.RFC3339),
-			Name:      instance.Name,
-			Host:      instance.Host,
-			Port:      instance.Port,
-			Username:  instance.Username,
-			Version:   instance.Version,
-			Params:    instance.Params,
-			Remark:    instance.Remark,
+			ID:           instance.ID,
+			CreatedAt:    instance.CreatedAt.Format(time.RFC3339),
+			UpdatedAt:    instance.UpdatedAt.Format(time.RFC3339),
+			Name:         instance.Name,
+			Host:         instance.Host,
+			Port:         instance.Port,
+			Username:     instance.Username,
+			Version:      instance.Version,
+			Params:       instance.Params,
+			Remark:       instance.Remark,
+			SyncInterval: instance.SyncInterval,
+			LastSyncAt:   lastSyncAt,
 		}
 	}
 
@@ -202,22 +221,6 @@ func (s *InstanceService) List(req *model.InstanceListRequest) (*model.InstanceL
 		Total: total,
 		Items: items,
 	}, nil
-}
-
-// getMySQLConnection 获取 MySQL 数据库连接
-func (s *InstanceService) getMySQLConnection(instance *model.Instance) (*sql.DB, error) {
-	dsn := fmt.Sprintf("%s:%s@tcp(%s:%d)/?charset=utf8mb4&parseTime=True&loc=Local",
-		instance.Username, instance.Password, instance.Host, instance.Port)
-
-	db, err := sql.Open("mysql", dsn)
-	if err != nil {
-		return nil, fmt.Errorf("连接数据库失败 [%s]: %v", instance.Name, err)
-	}
-
-	// 设置连接超时
-	db.SetConnMaxLifetime(time.Second * 5)
-
-	return db, nil
 }
 
 // SyncDatabases 同步数据库信息
@@ -239,7 +242,7 @@ func (s *InstanceService) SyncDatabases(instanceIDs []uint) error {
 			defer func() { <-sem }() // 释放信号量
 
 			// 连接数据库
-			db, err := s.getMySQLConnection(&instance)
+			db, err := database.NewMySQLDB(&instance)
 			if err != nil {
 				return err
 			}
@@ -343,15 +346,16 @@ func (s *InstanceService) syncDatabases(tx *gorm.DB, db *sql.DB, instanceID uint
 }
 
 // TestConnection 测试数据库连接
-func (s *InstanceService) TestConnection(host string, port int, username, password string) error {
+func (s *InstanceService) TestConnection(host string, port int, username, password string, params model.InstanceParams) error {
 	instance := &model.Instance{
 		Host:     host,
 		Port:     port,
 		Username: username,
 		Password: password,
+		Params:   params,
 	}
 
-	db, err := s.getMySQLConnection(instance)
+	db, err := database.NewMySQLDB(instance)
 	if err != nil {
 		return err
 	}
@@ -366,15 +370,16 @@ func (s *InstanceService) TestConnection(host string, port int, username, passwo
 }
 
 // getMySQLVersion 获取MySQL版本
-func (s *InstanceService) getMySQLVersion(host string, port int, username, password string) (string, error) {
+func (s *InstanceService) getMySQLVersion(host string, port int, username, password string, params model.InstanceParams) (string, error) {
 	instance := &model.Instance{
 		Host:     host,
 		Port:     port,
 		Username: username,
 		Password: password,
+		Params:   params,
 	}
 
-	db, err := s.getMySQLConnection(instance)
+	db, err := database.NewMySQLDB(instance)
 	if err != nil {
 		return "", err
 	}
@@ -411,4 +416,97 @@ func (s *InstanceService) GetOptions() ([]model.Option, error) {
 	}
 
 	return options, nil
+}
+
+// ExportInstances 导出实例配置
+func (s *InstanceService) ExportInstances(instanceIDs []uint) ([]model.Instance, error) {
+	var instances []model.Instance
+	db := database.GetDB()
+
+	// 如果 instanceIDs 不为空，则按 ID 筛选；否则，获取所有实例
+	if len(instanceIDs) > 0 {
+		db = db.Where("id IN ?", instanceIDs)
+	}
+
+	if err := db.Find(&instances).Error; err != nil {
+		return nil, err
+	}
+
+	// 清除密码字段
+	for i := range instances {
+		instances[i].Password = ""
+	}
+
+	return instances, nil
+}
+
+// ImportInstances 导入实例配置
+func (s *InstanceService) ImportInstances(fileContent io.Reader) (*model.ImportSummary, error) {
+	bytes, err := io.ReadAll(fileContent)
+	if err != nil {
+		return nil, fmt.Errorf("读取文件内容失败: %w", err)
+	}
+
+	var instancesToImport []model.Instance
+	if err := json.Unmarshal(bytes, &instancesToImport); err != nil {
+		return nil, fmt.Errorf("解析JSON文件失败: %w", err)
+	}
+
+	summary := &model.ImportSummary{}
+	for _, instance := range instancesToImport {
+		// 检查实例名称是否存在
+		if s.checkNameExists(instance.Name, 0) {
+			summary.Skipped++
+			summary.Errors = append(summary.Errors, fmt.Sprintf("实例 '%s' 已存在，已跳过", instance.Name))
+			continue
+		}
+
+		// 获取数据库版本
+		version, err := s.getMySQLVersion(instance.Host, instance.Port, instance.Username, instance.Password, instance.Params)
+		if err != nil {
+			summary.Failed++
+			summary.Errors = append(summary.Errors, fmt.Sprintf("获取实例 '%s' 版本失败: %v", instance.Name, err))
+			continue
+		}
+		instance.Version = version
+
+		// 创建实例
+		if err := database.GetDB().Create(&instance).Error; err != nil {
+			summary.Failed++
+			summary.Errors = append(summary.Errors, fmt.Sprintf("创建实例 '%s' 失败: %v", instance.Name, err))
+			continue
+		}
+		summary.Succeeded++
+	}
+
+	return summary, nil
+}
+
+// areParamsEqual 比较两个 InstanceParams 是否相等
+func (s *InstanceService) areParamsEqual(p1, p2 model.InstanceParams) bool {
+	if len(p1) != len(p2) {
+		return false
+	}
+	map1 := make(map[string]string)
+	for _, paramMap := range p1 {
+		for k, v := range paramMap {
+			map1[k] = v
+		}
+	}
+	map2 := make(map[string]string)
+	for _, paramMap := range p2 {
+		for k, v := range paramMap {
+			map2[k] = v
+		}
+	}
+
+	if len(map1) != len(map2) {
+		return false
+	}
+	for k, v1 := range map1 {
+		if v2, ok := map2[k]; !ok || v1 != v2 {
+			return false
+		}
+	}
+	return true
 }
