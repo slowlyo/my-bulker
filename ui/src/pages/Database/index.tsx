@@ -122,6 +122,12 @@ const DatabasePage: React.FC = () => {
                     };
                 }}
                 columns={columns}
+                pagination={{
+                    showSizeChanger: true,
+                    pageSizeOptions: ['10', '20', '50', '100'],
+                    defaultPageSize: 20,
+                    showTotal: (total) => `共 ${total} 条记录`
+                }}
                 onRow={(record) => {
                     return {
                         onClick: () => handleRowClick(record),

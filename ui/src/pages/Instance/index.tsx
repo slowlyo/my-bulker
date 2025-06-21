@@ -314,6 +314,12 @@ const InstancePage: React.FC = () => {
                     };
                 }}
                 columns={columns}
+                pagination={{
+                    showSizeChanger: true,
+                    pageSizeOptions: ['10', '20', '50', '100'],
+                    defaultPageSize: 20,
+                    showTotal: (total) => `共 ${total} 条记录`
+                }}
             />
             <InstanceForm
                 visible={drawerVisible}

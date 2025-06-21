@@ -321,6 +321,12 @@ const QueryTaskPage: React.FC = () => {
                 }}
                 columns={columns}
                 scroll={{ x: 1200 }}
+                pagination={{
+                    showSizeChanger: true,
+                    pageSizeOptions: ['10', '20', '50', '100'],
+                    defaultPageSize: 20,
+                    showTotal: (total) => `共 ${total} 条记录`
+                }}
                 rowSelection={{
                     onChange: (keys) => {
                         setSelectedRowKeys(keys);
