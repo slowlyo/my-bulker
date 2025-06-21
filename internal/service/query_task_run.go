@@ -5,8 +5,8 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
-	"mysql-batch-tools/internal/model"
-	"mysql-batch-tools/internal/pkg/database"
+	"my-bulker/internal/model"
+	"my-bulker/internal/pkg/database"
 	"sync"
 	"time"
 

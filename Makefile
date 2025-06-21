@@ -1,5 +1,5 @@
 # 应用名称
-APP_NAME = mysql-batch-tools
+APP_NAME = my-bulker
 
 # 构建参数
 BUILD_DIR = build

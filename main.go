@@ -2,7 +2,7 @@ package main
 
 import (
 	"log"
-	"mysql-batch-tools/internal/bootstrap"
+	"my-bulker/internal/bootstrap"
 )
 
 func main() {

@@ -14,7 +14,7 @@ export default defineConfig({
     initialState: {},
     request: {},
     layout: {
-        title: "Batch Tools",
+        title: "My Bulker",
     },
     history: {
         type: "hash",

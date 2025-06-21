@@ -33,7 +33,7 @@ export const layout = () => {
                 icon={<GithubOutlined />}
                 type="link"
                 onClick={() =>
-                    window.open("https://github.com/slowlyo/mysql-batch-tools")
+                    window.open("https://github.com/slowlyo/my-bulker")
                 }
             >
                 slowlyo

@@ -2,9 +2,9 @@ package handler
 
 import (
 	"fmt"
-	"mysql-batch-tools/internal/model"
-	"mysql-batch-tools/internal/pkg/response"
-	"mysql-batch-tools/internal/service"
+	"my-bulker/internal/model"
+	"my-bulker/internal/pkg/response"
+	"my-bulker/internal/service"
 	"strconv"
 
 	"github.com/gofiber/fiber/v2"

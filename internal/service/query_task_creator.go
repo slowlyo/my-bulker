@@ -7,9 +7,9 @@ import (
 	"fmt"
 	"strings"
 
-	"mysql-batch-tools/internal/model"
-	"mysql-batch-tools/internal/pkg/database"
-	"mysql-batch-tools/internal/pkg/sql_parse"
+	"my-bulker/internal/model"
+	"my-bulker/internal/pkg/database"
+	"my-bulker/internal/pkg/sql_parse"
 
 	"gorm.io/gorm"
 )

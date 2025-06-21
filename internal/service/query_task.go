@@ -4,7 +4,7 @@ import (
 	"context"
 	"time"
 
-	"mysql-batch-tools/internal/model"
+	"my-bulker/internal/model"
 
 	"gorm.io/gorm"
 )

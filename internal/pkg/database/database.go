@@ -6,7 +6,7 @@ import (
 	"path/filepath"
 	"sync"
 
-	"mysql-batch-tools/internal/model"
+	"my-bulker/internal/model"
 
 	"gorm.io/driver/mysql"
 	"gorm.io/driver/sqlite"

@@ -1,4 +1,4 @@
-module mysql-batch-tools
+module my-bulker
 
 go 1.24.4
 

@@ -1,8 +1,8 @@
 package router
 
 import (
-	"mysql-batch-tools/internal/handler"
-	"mysql-batch-tools/internal/middleware"
+	"my-bulker/internal/handler"
+	"my-bulker/internal/middleware"
 
 	"github.com/gofiber/fiber/v2"
 )

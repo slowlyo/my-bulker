@@ -1,1 +1,1 @@
-export const DEFAULT_NAME = 'Batch Tools';
+export const DEFAULT_NAME = 'My Bulker';

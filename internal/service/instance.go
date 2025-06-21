@@ -5,8 +5,8 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
-	"mysql-batch-tools/internal/model"
-	"mysql-batch-tools/internal/pkg/database"
+	"my-bulker/internal/model"
+	"my-bulker/internal/pkg/database"
 	"time"
 
 	_ "github.com/go-sql-driver/mysql"

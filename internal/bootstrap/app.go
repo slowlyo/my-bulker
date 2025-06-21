@@ -2,8 +2,8 @@ package bootstrap
 
 import (
 	"log"
-	"mysql-batch-tools/internal/pkg/database"
-	"mysql-batch-tools/internal/router"
+	"my-bulker/internal/pkg/database"
+	"my-bulker/internal/router"
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/fiber/v2/middleware/logger"
@@ -19,7 +19,7 @@ func NewApp() *fiber.App {
 
 	// 创建 Fiber 应用实例
 	app := fiber.New(fiber.Config{
-		AppName: "mysql-batch-tools v1.0.0",
+		AppName: "my-bulker v1.0.0",
 	})
 
 	// 添加全局中间件

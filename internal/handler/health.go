@@ -1,7 +1,7 @@
 package handler
 
 import (
-	"mysql-batch-tools/internal/pkg/response"
+	"my-bulker/internal/pkg/response"
 
 	"github.com/gofiber/fiber/v2"
 )

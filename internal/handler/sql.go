@@ -1,8 +1,8 @@
 package handler
 
 import (
-	"mysql-batch-tools/internal/pkg/response"
-	"mysql-batch-tools/internal/pkg/sql_parse"
+	"my-bulker/internal/pkg/response"
+	"my-bulker/internal/pkg/sql_parse"
 	"strings"
 
 	"github.com/gofiber/fiber/v2"
