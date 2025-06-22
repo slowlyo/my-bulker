@@ -3,3 +3,4 @@ data
 .idea
 
 .cursor/rules/user.mdc
+ui/dist

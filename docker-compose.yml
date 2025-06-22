@@ -1,0 +1,14 @@
+version: '3.8'
+
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "9092:9092"
+    volumes:
+      # Mount the local data directory into the container for data persistence.
+      # The Go application should be configured to use this path for its database.
+      - ./data:/app/data
+    restart: always 

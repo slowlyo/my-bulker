@@ -12,9 +12,9 @@ import (
 
 	"my-bulker/internal/model"
 
+	"github.com/glebarez/sqlite"
 	_ "github.com/go-sql-driver/mysql"
 	"gorm.io/driver/mysql"
-	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
 	"gorm.io/gorm/logger"
 )

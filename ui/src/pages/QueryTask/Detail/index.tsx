@@ -44,6 +44,32 @@ const QueryTaskDetailPage: React.FC = () => {
         });
     }, [location.search]);
 
+    // 获取结果数据的函数（对接API）
+    const fetchResultData = async (sql: any, page: number = 1, pageSize: number = 20) => {
+        setResultLoading(true);
+        try {
+            // 查找 schema
+            const sqlWithSchema = sqlList.find((s) => s.id === sql.id);
+            setActiveSQL({
+                ...sql,
+                result_table_schema: sqlWithSchema?.result_table_schema || '',
+            });
+            // 查询结果表数据
+            const res = await getQueryTaskSQLResult(sql.id, { page, page_size: pageSize });
+            if (res.code === 200) {
+                setResultData(res.data?.items || []);
+            } else {
+                setResultData([]);
+                message.error(res.message || '查询结果加载失败');
+            }
+        } catch {
+            setResultData([]);
+            message.error('查询结果加载失败');
+        } finally {
+            setResultLoading(false);
+        }
+    };
+
     // 公共加载方法
     const loadAllData = async (isFirst = false) => {
         if (isFirst) setLoading(true);
@@ -162,32 +188,6 @@ const QueryTaskDetailPage: React.FC = () => {
             case 2: return '成功';
             case 3: return '失败';
             default: return '未知';
-        }
-    };
-
-    // 获取结果数据的函数（对接API）
-    const fetchResultData = async (sql: any, page: number = 1, pageSize: number = 20) => {
-        setResultLoading(true);
-        try {
-            // 查找 schema
-            const sqlWithSchema = sqlList.find((s) => s.id === sql.id);
-            setActiveSQL({
-                ...sql,
-                result_table_schema: sqlWithSchema?.result_table_schema || '',
-            });
-            // 查询结果表数据
-            const res = await getQueryTaskSQLResult(sql.id, { page, page_size: pageSize });
-            if (res.code === 200) {
-                setResultData(res.data?.items || []);
-            } else {
-                setResultData([]);
-                message.error(res.message || '查询结果加载失败');
-            }
-        } catch {
-            setResultData([]);
-            message.error('查询结果加载失败');
-        } finally {
-            setResultLoading(false);
         }
     };
 
