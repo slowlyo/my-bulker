@@ -38,10 +38,46 @@
 3.  **访问应用**:
     构建完成后，打开浏览器访问: **http://localhost:9092**
 
+4.  **自定义端口**:
+    如需使用不同端口（例如 `8080`），请在项目根目录创建一个 `.env` 文件，并添加以下内容：
+    ```
+    APP_PORT=8080
+    PORT=8080
+    ```
+    然后重新执行 `docker-compose up --build -d`。
+
 ### 管理服务
 
 - **停止服务**: `docker-compose down`
 - **查看日志**: `docker-compose logs -f`
+
+## 💻 手动部署 (使用发布包)
+
+如果您不想使用 Docker，也可以直接从 GitHub Releases 下载预编译的程序。
+
+1.  **下载**: 前往本项目的 [GitHub Releases](https://github.com/slowlyo/my-bulker/releases) 页面。
+2.  **选择**: 根据您的操作系统和CPU架构，下载对应的压缩包（例如 `my-bulker-linux-amd64.tar.gz` 或 `my-bulker-windows-amd64.zip`）。
+3.  **解压**: 将下载的压缩包解压到您选择的任意位置。
+4.  **运行**:
+    - **Linux/macOS**:
+      ```bash
+      # 授予执行权限
+      chmod +x ./my-bulker
+      # 运行 (可使用 --port 指定端口)
+      ./my-bulker --port=8080
+      ```
+    - **Windows**:
+      双击 `my-bulker.exe` 运行 (使用默认9092端口)。
+      或通过命令行指定端口：
+      ```bash
+      my-bulker.exe --port=8080
+      ```
+5.  **访问应用**:
+    程序启动后，打开浏览器访问: **http://localhost:PORT** (PORT为您指定的端口, 默认为9092)
+
+> **数据存储说明**:
+>
+> 程序首次运行时，会在可执行文件所在的目录自动创建一个 `data` 文件夹，用于存放所有应用数据（包括 `app.db` 数据库文件）。请确保程序对该目录有写入权限。
 
 ## 🛠️ 技术栈
 

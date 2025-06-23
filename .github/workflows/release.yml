@@ -1,0 +1,108 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*' # 触发标签, 如 v1.0.0
+  workflow_dispatch: # 允许手动触发
+
+jobs:
+  build:
+    name: Build
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        goos: [linux, windows, darwin]
+        goarch: [amd64, arm64]
+        exclude:
+          - goos: darwin
+            goarch: arm64 # 目前 GitHub Actions M1 runner 还是 beta, 先排除
+          - goos: windows
+            goarch: arm64 # windows arm64 比较少见
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Set up pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
+      - name: Install frontend dependencies
+        run: cd ui && pnpm install
+
+      - name: Build frontend
+        run: cd ui && pnpm build
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.24'
+
+      - name: Set up build environment
+        run: |
+          echo "BINARY_NAME=my-bulker" >> $GITHUB_ENV
+          if [ "${{ matrix.goos }}" = "windows" ]; then
+            echo "ARCHIVE_NAME=my-bulker-${{ matrix.goos }}-${{ matrix.goarch }}.zip" >> $GITHUB_ENV
+            echo "BINARY_EXT=.exe" >> $GITHUB_ENV
+          else
+            echo "ARCHIVE_NAME=my-bulker-${{ matrix.goos }}-${{ matrix.goarch }}.tar.gz" >> $GITHUB_ENV
+            echo "BINARY_EXT=" >> $GITHUB_ENV
+          fi
+        shell: bash
+
+      - name: Build Go application
+        run: |
+          CGO_ENABLED=0 GOOS=${{ matrix.goos }} GOARCH=${{ matrix.goarch }} go build -v -ldflags="-s -w" -o "release/${{ env.BINARY_NAME }}${{ env.BINARY_EXT }}" .
+        env:
+          GOOS: ${{ matrix.goos }}
+          GOARCH: ${{ matrix.goarch }}
+
+      - name: Package release assets
+        run: |
+          mkdir -p release_package
+          cp README.md release_package/
+          mv release/${{ env.BINARY_NAME }}${{ env.BINARY_EXT }} release_package/
+          cd release_package
+          if [ "${{ matrix.goos }}" = "windows" ]; then
+            zip -r ../${{ env.ARCHIVE_NAME }} .
+          else
+            tar -czf ../${{ env.ARCHIVE_NAME }} .
+          fi
+          cd ..
+      
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-assets-${{ matrix.goos }}-${{ matrix.goarch }}
+          path: ${{ env.ARCHIVE_NAME }}
+
+  release:
+    name: Create Release
+    needs: build
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/') # 只在打tag时创建release
+    permissions:
+      contents: write
+
+    steps:
+      - name: Download all release assets
+        uses: actions/download-artifact@v4
+        with:
+          path: release-assets
+      
+      - name: List downloaded files
+        run: find release-assets -type f -name '*.*'
+
+      - name: Create Release and Upload Assets
+        uses: softprops/action-gh-release@v2
+        with:
+          files: release-assets/*/*
+          body_path: README.md
+          fail_on_unmatched_files: true 

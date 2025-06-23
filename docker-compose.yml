@@ -6,9 +6,14 @@ services:
       context: .
       dockerfile: Dockerfile
     ports:
-      - "9092:9092"
+      # 将主机端口映射到容器端口。例如: 8080:8080
+      # 您可以在 .env 文件中定义 APP_PORT 和 PORT 来覆盖默认值
+      - "${APP_PORT:-9092}:${PORT:-9092}"
     volumes:
       # Mount the local data directory into the container for data persistence.
       # The Go application should be configured to use this path for its database.
       - ./data:/app/data
+    environment:
+      # 设置应用在容器内监听的端口
+      - PORT=${PORT:-9092}
     restart: always 
