@@ -87,4 +87,7 @@
 
 ## 📸 应用预览
 
-todo ...
+![home](./docs/images/home.png)
+![instance](./docs/images/instance.png)
+![detail](./docs/images/detail.png)
+![setting](./docs/images/setting.png)
