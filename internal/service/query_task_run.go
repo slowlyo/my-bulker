@@ -208,11 +208,56 @@ func (s *QueryTaskRunService) executeSQLsConcurrently(
 		Status       int8
 	}
 	statCh := make(chan StatMsg, len(executions))
+	// updateQueue 用于将已完成的 execution 存入队列，由后台 goroutine 定时批量更新到数据库
+	updateQueue := make(chan *model.QueryTaskExecution, len(executions))
 	stats := &statResult{
 		completedDBs: make(map[string]struct{}),
 		failedDBs:    make(map[string]struct{}),
 		sqlStats:     make(map[uint]struct{ total, completed, failed int64 }),
 	}
+
+	// 启动一个 goroutine，用于定时批量更新 execution 状态，以提供实时进度
+	var updateWg sync.WaitGroup
+	updateWg.Add(1)
+	go func() {
+		defer updateWg.Done()
+		ticker := time.NewTicker(1 * time.Second) // 每 1 秒更新一次
+		defer ticker.Stop()
+		buffer := make([]*model.QueryTaskExecution, 0, 100) // 缓冲区大小为 100
+
+		flush := func() {
+			if len(buffer) == 0 {
+				return
+			}
+			if err := s.db.Transaction(func(tx *gorm.DB) error {
+				for _, e := range buffer {
+					if err := tx.Save(e).Error; err != nil {
+						return err // 如果任何一个保存失败，则回滚整个事务
+					}
+				}
+				return nil
+			}); err != nil {
+				log.Printf("ERROR: failed to batch update execution status: %v", err)
+			}
+			buffer = buffer[:0] // 清空缓冲区
+		}
+
+		for {
+			select {
+			case exec, ok := <-updateQueue:
+				if !ok { // channel 已关闭
+					flush()
+					return
+				}
+				buffer = append(buffer, exec)
+				if len(buffer) >= 100 {
+					flush()
+				}
+			case <-ticker.C:
+				flush()
+			}
+		}
+	}()
 
 	// 初始化SQL统计映射
 	executionCountsPerSQL := make(map[uint]int64)
@@ -273,8 +318,8 @@ func (s *QueryTaskRunService) executeSQLsConcurrently(
 				exec.ErrorMessage = "实例不存在"
 				t := time.Now()
 				exec.CompletedAt = &t
-				s.db.Save(exec)
 				statCh <- StatMsg{SQLID: exec.SQLID, InstanceID: exec.InstanceID, DatabaseName: exec.DatabaseName, Status: exec.Status}
+				updateQueue <- exec
 				return
 			}
 			poolKey := fmt.Sprintf("%d_%s", exec.InstanceID, exec.DatabaseName)
@@ -289,8 +334,8 @@ func (s *QueryTaskRunService) executeSQLsConcurrently(
 					exec.ErrorMessage = "连接数据库失败: " + err.Error()
 					t := time.Now()
 					exec.CompletedAt = &t
-					s.db.Save(exec)
 					statCh <- StatMsg{SQLID: exec.SQLID, InstanceID: exec.InstanceID, DatabaseName: exec.DatabaseName, Status: exec.Status}
+					updateQueue <- exec
 					return
 				}
 				poolMu.Lock()
@@ -309,8 +354,8 @@ func (s *QueryTaskRunService) executeSQLsConcurrently(
 					exec.ErrorMessage = "SQL执行失败: " + err.Error()
 					t := time.Now()
 					exec.CompletedAt = &t
-					s.db.Save(exec)
 					statCh <- StatMsg{SQLID: exec.SQLID, InstanceID: exec.InstanceID, DatabaseName: exec.DatabaseName, Status: exec.Status}
+					updateQueue <- exec
 					return
 				}
 				if len(rows) > 0 {
@@ -346,15 +391,15 @@ func (s *QueryTaskRunService) executeSQLsConcurrently(
 				exec.ErrorMessage = ""
 				t := time.Now()
 				exec.CompletedAt = &t
-				s.db.Save(exec)
 				statCh <- StatMsg{SQLID: exec.SQLID, InstanceID: exec.InstanceID, DatabaseName: exec.DatabaseName, Status: exec.Status}
+				updateQueue <- exec
 			case <-time.After(time.Duration(queryTimeoutSec) * time.Second):
 				exec.Status = 3
 				exec.ErrorMessage = "SQL执行超时"
 				t := time.Now()
 				exec.CompletedAt = &t
-				s.db.Save(exec)
 				statCh <- StatMsg{SQLID: exec.SQLID, InstanceID: exec.InstanceID, DatabaseName: exec.DatabaseName, Status: exec.Status}
+				updateQueue <- exec
 				return
 			}
 		}(e, sqlMap[e.SQLID])
@@ -362,7 +407,9 @@ func (s *QueryTaskRunService) executeSQLsConcurrently(
 
 	wg.Wait()
 	close(statCh)
+	close(updateQueue) // 所有 goroutine 执行完毕，关闭更新队列
 	<-doneCh
+	updateWg.Wait() // 等待最后的批量更新完成
 	fmt.Printf("Final aggregated stats: completedDBs=%d, failedDBs=%d, sqlStats=%+v\n",
 		len(stats.completedDBs), len(stats.failedDBs), stats.sqlStats)
 
