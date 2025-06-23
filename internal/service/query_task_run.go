@@ -118,10 +118,10 @@ func (s *QueryTaskRunService) Run(ctx context.Context, taskID uint) error {
 	}
 
 	// 2. 获取相关设置
-	_, concurrency, queryTimeoutSec := s.getSetting()
+	maxConn, concurrency, queryTimeoutSec := s.getSetting()
 
 	// 3. 并发执行所有SQL
-	stats := s.executeSQLsConcurrently(ctx, task, sqls, executions, instMap, concurrency, queryTimeoutSec)
+	stats := s.executeSQLsConcurrently(ctx, task, sqls, executions, instMap, maxConn, concurrency, queryTimeoutSec)
 
 	// 4. 聚合统计结果并更新数据库
 	return s.aggregateAndSaveStats(task, sqls, executions, stats)
@@ -167,6 +167,7 @@ func (s *QueryTaskRunService) executeSQLsConcurrently(
 	sqls []model.QueryTaskSQL,
 	executions []model.QueryTaskExecution,
 	instMap map[uint]*model.Instance,
+	maxConn int,
 	concurrency int,
 	queryTimeoutSec int,
 ) *statResult {
@@ -282,7 +283,7 @@ func (s *QueryTaskRunService) executeSQLsConcurrently(
 			poolMu.Unlock()
 			var err error
 			if !ok {
-				dbConn, err = database.NewMySQLGormDB(inst, exec.DatabaseName, 5)
+				dbConn, err = database.NewMySQLGormDB(inst, exec.DatabaseName, maxConn)
 				if err != nil {
 					exec.Status = 3
 					exec.ErrorMessage = "连接数据库失败: " + err.Error()
