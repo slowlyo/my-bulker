@@ -432,11 +432,6 @@ func (s *InstanceService) ExportInstances(instanceIDs []uint) ([]model.Instance,
 		return nil, err
 	}
 
-	// 清除密码字段
-	for i := range instances {
-		instances[i].Password = ""
-	}
-
 	return instances, nil
 }
 
