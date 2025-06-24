@@ -186,10 +186,11 @@ func (s *QueryTaskRunService) executeSQLsConcurrently(
 		}
 	}()
 
-	// 将SQL列表转换为Map以提高查找效率 O(N) -> O(1)
-	sqlMap := make(map[uint]model.QueryTaskSQL)
-	for _, sql := range sqls {
-		sqlMap[sql.ID] = sql
+	// 将 executions 按 SQL ID 分组，便于后续按序执行
+	executionsBySQL := make(map[uint][]*model.QueryTaskExecution)
+	for i := range executions {
+		exec := &executions[i]
+		executionsBySQL[exec.SQLID] = append(executionsBySQL[exec.SQLID], exec)
 	}
 
 	startTime := time.Now()
@@ -199,7 +200,6 @@ func (s *QueryTaskRunService) executeSQLsConcurrently(
 	}
 
 	sem := make(chan struct{}, concurrency)
-	var wg sync.WaitGroup
 
 	type StatMsg struct {
 		SQLID        uint
@@ -289,11 +289,6 @@ func (s *QueryTaskRunService) executeSQLsConcurrently(
 		doneCh <- struct{}{}
 	}()
 
-	for _, sql := range sqls {
-		start := time.Now()
-		s.db.Model(&model.QueryTaskSQL{}).Where("id = ?", sql.ID).Update("started_at", start)
-	}
-
 	type resultBuffer struct {
 		mu   sync.Mutex
 		rows []map[string]interface{}
@@ -304,108 +299,121 @@ func (s *QueryTaskRunService) executeSQLsConcurrently(
 	}
 	batchSize := 1000
 
-	for i := range executions {
-		e := &executions[i]
-		wg.Add(1)
-		sem <- struct{}{}
-		go func(exec *model.QueryTaskExecution, currentSQL model.QueryTaskSQL) {
-			defer wg.Done()
-			defer func() { <-sem }()
+	// 按顺序执行每个 SQL
+	for _, sql := range sqls {
+		start := time.Now()
+		s.db.Model(&model.QueryTaskSQL{}).Where("id = ?", sql.ID).Update("started_at", start)
 
-			inst := instMap[exec.InstanceID]
-			if inst == nil {
-				exec.Status = 3
-				exec.ErrorMessage = "实例不存在"
-				t := time.Now()
-				exec.CompletedAt = &t
-				statCh <- StatMsg{SQLID: exec.SQLID, InstanceID: exec.InstanceID, DatabaseName: exec.DatabaseName, Status: exec.Status}
-				updateQueue <- exec
-				return
-			}
-			poolKey := fmt.Sprintf("%d_%s", exec.InstanceID, exec.DatabaseName)
-			poolMu.Lock()
-			dbConn, ok := dbConnPool[poolKey]
-			poolMu.Unlock()
-			var err error
-			if !ok {
-				dbConn, err = database.NewMySQLGormDB(inst, exec.DatabaseName, maxConn)
-				if err != nil {
+		sqlExecutions := executionsBySQL[sql.ID]
+		if len(sqlExecutions) == 0 {
+			continue
+		}
+
+		var wg sync.WaitGroup
+		wg.Add(len(sqlExecutions))
+
+		for _, e := range sqlExecutions {
+			sem <- struct{}{}
+			go func(exec *model.QueryTaskExecution, currentSQL model.QueryTaskSQL) {
+				defer wg.Done()
+				defer func() { <-sem }()
+
+				inst := instMap[exec.InstanceID]
+				if inst == nil {
 					exec.Status = 3
-					exec.ErrorMessage = "连接数据库失败: " + err.Error()
+					exec.ErrorMessage = "实例不存在"
 					t := time.Now()
 					exec.CompletedAt = &t
 					statCh <- StatMsg{SQLID: exec.SQLID, InstanceID: exec.InstanceID, DatabaseName: exec.DatabaseName, Status: exec.Status}
 					updateQueue <- exec
 					return
 				}
+				poolKey := fmt.Sprintf("%d_%s", exec.InstanceID, exec.DatabaseName)
 				poolMu.Lock()
-				dbConnPool[poolKey] = dbConn
+				dbConn, ok := dbConnPool[poolKey]
 				poolMu.Unlock()
-			}
-			queryDone := make(chan error, 1)
-			var rows []map[string]interface{}
-			go func() {
-				queryDone <- dbConn.Raw(currentSQL.SQLContent).Scan(&rows).Error
-			}()
-			select {
-			case err = <-queryDone:
-				if err != nil {
-					exec.Status = 3
-					exec.ErrorMessage = "SQL执行失败: " + err.Error()
-					t := time.Now()
-					exec.CompletedAt = &t
-					statCh <- StatMsg{SQLID: exec.SQLID, InstanceID: exec.InstanceID, DatabaseName: exec.DatabaseName, Status: exec.Status}
-					updateQueue <- exec
-					return
-				}
-				if len(rows) > 0 {
-					var schemaObj model.TableSchema
-					_ = json.Unmarshal([]byte(currentSQL.ResultTableSchema), &schemaObj)
-					b64Map := make(map[string]string)
-					for _, f := range schemaObj.Fields {
-						b64 := base64.RawURLEncoding.EncodeToString([]byte(f.Name))
-						b64Map[f.Name] = b64
+				var err error
+				if !ok {
+					dbConn, err = database.NewMySQLGormDB(inst, exec.DatabaseName, maxConn)
+					if err != nil {
+						exec.Status = 3
+						exec.ErrorMessage = "连接数据库失败: " + err.Error()
+						t := time.Now()
+						exec.CompletedAt = &t
+						statCh <- StatMsg{SQLID: exec.SQLID, InstanceID: exec.InstanceID, DatabaseName: exec.DatabaseName, Status: exec.Status}
+						updateQueue <- exec
+						return
 					}
-					buf := buffers[currentSQL.ID]
-					buf.mu.Lock()
-					for _, row := range rows {
-						insert := make(map[string]interface{})
-						for k, v := range row {
-							if b64, ok := b64Map[k]; ok {
-								insert[b64] = v
+					poolMu.Lock()
+					dbConnPool[poolKey] = dbConn
+					poolMu.Unlock()
+				}
+				queryDone := make(chan error, 1)
+				var rows []map[string]interface{}
+				go func() {
+					queryDone <- dbConn.Raw(currentSQL.SQLContent).Scan(&rows).Error
+				}()
+				select {
+				case err = <-queryDone:
+					if err != nil {
+						exec.Status = 3
+						exec.ErrorMessage = "SQL执行失败: " + err.Error()
+						t := time.Now()
+						exec.CompletedAt = &t
+						statCh <- StatMsg{SQLID: exec.SQLID, InstanceID: exec.InstanceID, DatabaseName: exec.DatabaseName, Status: exec.Status}
+						updateQueue <- exec
+						return
+					}
+					if len(rows) > 0 {
+						var schemaObj model.TableSchema
+						_ = json.Unmarshal([]byte(currentSQL.ResultTableSchema), &schemaObj)
+						b64Map := make(map[string]string)
+						for _, f := range schemaObj.Fields {
+							b64 := base64.RawURLEncoding.EncodeToString([]byte(f.Name))
+							b64Map[f.Name] = b64
+						}
+						buf := buffers[currentSQL.ID]
+						buf.mu.Lock()
+						for _, row := range rows {
+							insert := make(map[string]interface{})
+							for k, v := range row {
+								if b64, ok := b64Map[k]; ok {
+									insert[b64] = v
+								}
+							}
+							insert[base64.RawURLEncoding.EncodeToString([]byte("query_task_execution_instance_id"))] = exec.InstanceID
+							insert[base64.RawURLEncoding.EncodeToString([]byte("query_task_execution_instance_name"))] = inst.Name
+							insert[base64.RawURLEncoding.EncodeToString([]byte("query_task_execution_database_name"))] = exec.DatabaseName
+							insert[base64.RawURLEncoding.EncodeToString([]byte("query_task_execution_error_message"))] = exec.ErrorMessage
+							buf.rows = append(buf.rows, insert)
+							if len(buf.rows) >= batchSize {
+								s.db.Table(currentSQL.ResultTableName).CreateInBatches(buf.rows, batchSize)
+								buf.rows = buf.rows[:0]
 							}
 						}
-						insert[base64.RawURLEncoding.EncodeToString([]byte("query_task_execution_instance_id"))] = exec.InstanceID
-						insert[base64.RawURLEncoding.EncodeToString([]byte("query_task_execution_instance_name"))] = inst.Name
-						insert[base64.RawURLEncoding.EncodeToString([]byte("query_task_execution_database_name"))] = exec.DatabaseName
-						insert[base64.RawURLEncoding.EncodeToString([]byte("query_task_execution_error_message"))] = exec.ErrorMessage
-						buf.rows = append(buf.rows, insert)
-						if len(buf.rows) >= batchSize {
-							s.db.Table(currentSQL.ResultTableName).CreateInBatches(buf.rows, batchSize)
-							buf.rows = buf.rows[:0]
-						}
+						buf.mu.Unlock()
 					}
-					buf.mu.Unlock()
+					exec.Status = 2
+					exec.ErrorMessage = ""
+					t := time.Now()
+					exec.CompletedAt = &t
+					statCh <- StatMsg{SQLID: exec.SQLID, InstanceID: exec.InstanceID, DatabaseName: exec.DatabaseName, Status: exec.Status}
+					updateQueue <- exec
+				case <-time.After(time.Duration(queryTimeoutSec) * time.Second):
+					exec.Status = 3
+					exec.ErrorMessage = "SQL执行超时"
+					t := time.Now()
+					exec.CompletedAt = &t
+					statCh <- StatMsg{SQLID: exec.SQLID, InstanceID: exec.InstanceID, DatabaseName: exec.DatabaseName, Status: exec.Status}
+					updateQueue <- exec
+					return
 				}
-				exec.Status = 2
-				exec.ErrorMessage = ""
-				t := time.Now()
-				exec.CompletedAt = &t
-				statCh <- StatMsg{SQLID: exec.SQLID, InstanceID: exec.InstanceID, DatabaseName: exec.DatabaseName, Status: exec.Status}
-				updateQueue <- exec
-			case <-time.After(time.Duration(queryTimeoutSec) * time.Second):
-				exec.Status = 3
-				exec.ErrorMessage = "SQL执行超时"
-				t := time.Now()
-				exec.CompletedAt = &t
-				statCh <- StatMsg{SQLID: exec.SQLID, InstanceID: exec.InstanceID, DatabaseName: exec.DatabaseName, Status: exec.Status}
-				updateQueue <- exec
-				return
-			}
-		}(e, sqlMap[e.SQLID])
+			}(e, sql)
+		}
+		// 等待当前 SQL 的所有 execution 完成
+		wg.Wait()
 	}
 
-	wg.Wait()
 	close(statCh)
 	close(updateQueue) // 所有 goroutine 执行完毕，关闭更新队列
 	<-doneCh
