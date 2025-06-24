@@ -1,10 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import { Form, Input, Select, Button, Space, Radio, Alert, Drawer } from 'antd';
+import { Form, Input, Select, Button, Space, Radio, Alert, Drawer, Modal, message } from 'antd';
 import { CreateQueryTaskRequest } from '@/services/queryTask/typings';
 import { getInstanceOptions } from '@/services/instance/InstanceController';
 import DatabaseSelector from './DatabaseSelector';
 import SQLEditor from './SQLEditor';
 import { validateSQL } from '@/services/queryTask/QueryTaskController';
+import { QueryTaskTemplate, getQueryTaskTemplates, saveQueryTaskTemplate, deleteQueryTaskTemplate } from '@/utils/queryTaskTemplate';
+import { DeleteOutlined } from '@ant-design/icons';
 
 const { TextArea } = Input;
 const { Option } = Select;
@@ -26,6 +28,10 @@ const CreateTaskForm: React.FC<CreateTaskFormProps> = ({
     const [instances, setInstances] = useState<{ label: string; value: number }[]>([]);
     const [selectedInstanceIds, setSelectedInstanceIds] = useState<number[]>([]);
     const [databaseMode, setDatabaseMode] = useState<'include' | 'exclude'>('include');
+    const [templates, setTemplates] = useState<QueryTaskTemplate[]>([]);
+    const [selectedTemplate, setSelectedTemplate] = useState<string | undefined>(undefined);
+    const [isSaveModalVisible, setIsSaveModalVisible] = useState(false);
+    const [newTemplateName, setNewTemplateName] = useState('');
 
     // 生成默认任务名称
     const generateDefaultTaskName = () => {
@@ -40,6 +46,11 @@ const CreateTaskForm: React.FC<CreateTaskFormProps> = ({
         return `查询任务_${year}${month}${day}_${hour}${minute}${second}`;
     };
 
+    // 加载模板
+    useEffect(() => {
+        setTemplates(getQueryTaskTemplates());
+    }, []);
+
     // 监听 visible 的变化，重置表单
     useEffect(() => {
         if (visible) {
@@ -49,6 +60,7 @@ const CreateTaskForm: React.FC<CreateTaskFormProps> = ({
             });
             setSelectedInstanceIds([]);
             setDatabaseMode('include');
+            setSelectedTemplate(undefined);
         } else {
             form.resetFields();
         }
@@ -121,9 +133,76 @@ const CreateTaskForm: React.FC<CreateTaskFormProps> = ({
         }
     };
 
+    const handleTemplateSelect = (templateName: string) => {
+        setSelectedTemplate(templateName);
+        if (!templateName) {
+            return
+        };
+    
+        const template = templates.find(t => t.name === templateName);
+        if (template) {
+            form.setFieldsValue(template.values);
+            // 手动触发依赖状态更新
+            if (template.values.instance_ids) {
+                setSelectedInstanceIds(template.values.instance_ids);
+            }
+            if (template.values.database_mode) {
+                setDatabaseMode(template.values.database_mode);
+            }
+            message.success(`已从模板 "${templateName}" 加载配置`);
+        }
+    };
+    
+    const handleShowSaveModal = () => {
+        const values = form.getFieldsValue(['instance_ids', 'database_mode', 'selected_dbs', 'sql_content']);
+        if (!values.sql_content && !values.instance_ids) {
+            message.warning('请至少填写 SQL 内容或选择实例后再保存模板');
+            return;
+        }
+        setNewTemplateName(''); 
+        setIsSaveModalVisible(true);
+    };
+
+    const handleSaveTemplate = () => {
+        if (!newTemplateName) {
+            message.error('模板名称不能为空');
+            return;
+        }
+        const valuesToSave = form.getFieldsValue(['instance_ids', 'database_mode', 'selected_dbs', 'sql_content']);
+        const newTemplate: QueryTaskTemplate = {
+            name: newTemplateName,
+            createdAt: new Date().toISOString(),
+            values: valuesToSave,
+        };
+        const newTemplates = saveQueryTaskTemplate(newTemplate);
+        setTemplates(newTemplates);
+        setSelectedTemplate(newTemplate.name);
+        setIsSaveModalVisible(false);
+        message.success(`模板 "${newTemplateName}" 已保存`);
+    };
+    
+    const handleDeleteTemplate = () => {
+        if (!selectedTemplate) return;
+    
+        Modal.confirm({
+            title: '确认删除',
+            content: `您确定要删除模板 "${selectedTemplate}" 吗？此操作无法撤销。`,
+            okText: '确认删除',
+            okType: 'danger',
+            cancelText: '取消',
+            onOk: () => {
+                const newTemplates = deleteQueryTaskTemplate(selectedTemplate);
+                setTemplates(newTemplates);
+                setSelectedTemplate(undefined);
+                message.success('模板已删除');
+            },
+        });
+    };
+
     const modeDesc = getModeDescription();
 
     return (
+        <>
         <Drawer
             title="创建查询任务"
             open={visible}
@@ -144,6 +223,33 @@ const CreateTaskForm: React.FC<CreateTaskFormProps> = ({
                 form={form}
                 layout="vertical"
             >
+                <Form.Item
+                    label="查询模板"
+                >
+                    <Space.Compact style={{ width: '100%' }}>
+                        <Select
+                            placeholder="从模板加载或选择模板进行管理"
+                            value={selectedTemplate}
+                            onChange={handleTemplateSelect}
+                            allowClear
+                            showSearch
+                            filterOption={(input, option) =>
+                                (option?.label ?? '').toLowerCase().includes(input.toLowerCase())
+                            }
+                            options={templates.map(t => ({ value: t.name, label: t.name }))}
+                        />
+                         <Button onClick={handleShowSaveModal}>
+                            存为模板
+                        </Button>
+                        <Button
+                            icon={<DeleteOutlined />}
+                            danger
+                            disabled={!selectedTemplate}
+                            onClick={handleDeleteTemplate}
+                        />
+                    </Space.Compact>
+                </Form.Item>
+
                 <Form.Item
                     name="task_name"
                     label="任务名称"
@@ -235,6 +341,22 @@ const CreateTaskForm: React.FC<CreateTaskFormProps> = ({
                 </Form.Item>
             </Form>
         </Drawer>
+
+        <Modal
+            title="保存为模板"
+            open={isSaveModalVisible}
+            onOk={handleSaveTemplate}
+            onCancel={() => setIsSaveModalVisible(false)}
+            okText="保存"
+            cancelText="取消"
+        >
+            <Input
+                placeholder="请输入模板名称"
+                value={newTemplateName}
+                onChange={(e) => setNewTemplateName(e.target.value)}
+            />
+        </Modal>
+        </>
     );
 };
 

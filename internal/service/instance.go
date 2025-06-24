@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log"
 	"my-bulker/internal/model"
 	"my-bulker/internal/pkg/database"
 	"time"
@@ -69,6 +70,13 @@ func (s *InstanceService) Create(req *model.CreateInstanceRequest) (*model.Insta
 		return nil, err
 	}
 
+	// 异步同步数据库信息
+	go func() {
+		if err := s.SyncDatabases([]uint{instance.ID}); err != nil {
+			log.Printf("ERROR: failed to sync databases for new instance %s (ID: %d): %v", instance.Name, instance.ID, err)
+		}
+	}()
+
 	return instance, nil
 }
 
@@ -121,7 +129,19 @@ func (s *InstanceService) Update(id uint, req *model.UpdateInstanceRequest) (*mo
 
 // Delete 删除实例
 func (s *InstanceService) Delete(id uint) error {
-	return database.GetDB().Delete(&model.Instance{}, id).Error
+	return database.GetDB().Transaction(func(tx *gorm.DB) error {
+		// 首先删除与该实例关联的数据库记录
+		if err := tx.Where("instance_id = ?", id).Delete(&model.Database{}).Error; err != nil {
+			return err
+		}
+
+		// 然后删除实例本身
+		if err := tx.Delete(&model.Instance{}, id).Error; err != nil {
+			return err
+		}
+
+		return nil
+	})
 }
 
 // Get 获取实例
@@ -448,6 +468,7 @@ func (s *InstanceService) ImportInstances(fileContent io.Reader) (*model.ImportS
 	}
 
 	summary := &model.ImportSummary{}
+	var successfulIDs []uint
 	for _, instance := range instancesToImport {
 		// 检查实例名称是否存在
 		if s.checkNameExists(instance.Name, 0) {
@@ -472,6 +493,16 @@ func (s *InstanceService) ImportInstances(fileContent io.Reader) (*model.ImportS
 			continue
 		}
 		summary.Succeeded++
+		successfulIDs = append(successfulIDs, instance.ID)
+	}
+
+	// 异步同步所有成功导入的实例的数据库信息
+	if len(successfulIDs) > 0 {
+		go func() {
+			if err := s.SyncDatabases(successfulIDs); err != nil {
+				log.Printf("ERROR: failed to sync databases for imported instances: %v", err)
+			}
+		}()
 	}
 
 	return summary, nil
