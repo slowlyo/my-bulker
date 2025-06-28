@@ -15,8 +15,6 @@ jobs:
         goos: [linux, windows, darwin]
         goarch: [amd64, arm64]
         exclude:
-          - goos: darwin
-            goarch: arm64 # 目前 GitHub Actions M1 runner 还是 beta, 先排除
           - goos: windows
             goarch: arm64 # windows arm64 比较少见
 
@@ -43,7 +41,7 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@v5
         with:
-          go-version: '1.24'
+          go-version: '1.23' # 使用稳定版本
 
       - name: Set up build environment
         run: |
