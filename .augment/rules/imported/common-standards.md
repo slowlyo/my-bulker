@@ -1,8 +1,7 @@
 ---
-description: 
-globs: 
-alwaysApply: false
+type: "always_apply"
 ---
+
 # Common Standards
 
 > 注意：这是唯一的公共规范文档，所有公共相关的规范都应该在这里维护，不允许创建新的规则文件。

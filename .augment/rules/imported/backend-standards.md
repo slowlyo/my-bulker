@@ -1,8 +1,7 @@
 ---
-description: 
-globs: 
-alwaysApply: false
+type: "always_apply"
 ---
+
 # Backend Standards
 
 > 注意：这是唯一的后端规范文档，所有后端相关的规范都应该在这里维护，不允许创建新的规则文件。
