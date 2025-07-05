@@ -77,6 +77,24 @@ func (h *InstanceHandler) Delete(c *fiber.Ctx) error {
 	return response.Success(c, nil)
 }
 
+// BatchDelete 批量删除实例
+func (h *InstanceHandler) BatchDelete(c *fiber.Ctx) error {
+	var req model.BatchDeleteInstancesRequest
+	if err := c.BodyParser(&req); err != nil {
+		return response.Invalid(c, "无效的请求数据")
+	}
+
+	if len(req.InstanceIDs) == 0 {
+		return response.Invalid(c, "实例ID列表不能为空")
+	}
+
+	if err := h.service.BatchDelete(req.InstanceIDs); err != nil {
+		return response.Internal(c, "批量删除实例失败")
+	}
+
+	return response.Ok(c, "批量删除成功")
+}
+
 // Get 获取实例
 func (h *InstanceHandler) Get(c *fiber.Ctx) error {
 	id, err := strconv.ParseUint(c.Params("id"), 10, 32)

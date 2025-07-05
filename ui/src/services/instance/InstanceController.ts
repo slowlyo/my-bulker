@@ -94,6 +94,23 @@ export async function deleteInstance(
   });
 }
 
+/** 批量删除实例 DELETE /api/instances/batch */
+export async function batchDeleteInstances(
+  body?: {
+    instance_ids: number[];
+  },
+  options?: { [key: string]: any },
+) {
+  return request<Result_string_>('/api/instances/batch', {
+    method: 'DELETE',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    data: body,
+    ...(options || {}),
+  });
+}
+
 /** 测试数据库连接 POST /api/instances/test-connection */
 export async function testConnection(
   body?: {

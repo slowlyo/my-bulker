@@ -2,7 +2,7 @@ import { PageContainer, ProTable } from '@ant-design/pro-components';
 import type { ActionType, ProColumns } from '@ant-design/pro-components';
 import { Button, Popconfirm, message, Space, Tag, Spin, Upload, Modal } from 'antd';
 import { useRef, useState } from 'react';
-import { addInstance, deleteInstance, modifyInstance, queryInstanceList, syncDatabases } from '@/services/instance/InstanceController';
+import { addInstance, deleteInstance, batchDeleteInstances, modifyInstance, queryInstanceList, syncDatabases } from '@/services/instance/InstanceController';
 import InstanceForm from './components/InstanceForm';
 import { InstanceInfo, APIResponse } from '@/services/instance/typings';
 import { EditOutlined, DeleteOutlined, PlusOutlined, SyncOutlined, LoadingOutlined, UploadOutlined, DownloadOutlined, ClockCircleOutlined } from '@ant-design/icons';
@@ -16,6 +16,8 @@ const InstancePage: React.FC = () => {
     const [selectedRows, setSelectedRows] = useState<InstanceInfo[]>([]);
     const [syncing, setSyncing] = useState(false);
     const [exporting, setExporting] = useState(false);
+    const [importing, setImporting] = useState(false);
+    const [batchDeleting, setBatchDeleting] = useState(false);
 
     const syncIntervalMap: { [key: number]: string } = {
         5: '每 5 分钟',
@@ -221,6 +223,30 @@ const InstancePage: React.FC = () => {
         }
     };
 
+    const handleBatchDelete = async () => {
+        if (selectedRows.length === 0) {
+            message.warning('请选择要删除的实例');
+            return;
+        }
+
+        setBatchDeleting(true);
+        try {
+            const instanceIds = selectedRows.map(row => row.id);
+            const res = await batchDeleteInstances({ instance_ids: instanceIds });
+            if (res.code === 200) {
+                message.success(`成功删除 ${selectedRows.length} 个实例`);
+                actionRef.current?.reload();
+                setSelectedRows([]);
+            } else {
+                message.error(res.message || '批量删除失败');
+            }
+        } catch (error: any) {
+            message.error(error.message || '批量删除失败');
+        } finally {
+            setBatchDeleting(false);
+        }
+    };
+
     return (
         <PageContainer ghost>
             <ProTable<InstanceInfo>
@@ -241,8 +267,12 @@ const InstancePage: React.FC = () => {
                         name="file"
                         action="/api/instances/import"
                         showUploadList={false}
+                        disabled={importing}
                         onChange={(info) => {
-                            if (info.file.status === 'done') {
+                            if (info.file.status === 'uploading') {
+                                setImporting(true);
+                            } else if (info.file.status === 'done') {
+                                setImporting(false);
                                 if (info.file.response.code === 200) {
                                     const { succeeded, failed, skipped, errors } = info.file.response.data;
                                     Modal.success({
@@ -263,14 +293,35 @@ const InstancePage: React.FC = () => {
                                     message.error(info.file.response.message || '导入失败');
                                 }
                             } else if (info.file.status === 'error') {
+                                setImporting(false);
                                 message.error('导入失败');
                             }
                         }}
                     >
-                        <Button icon={<UploadOutlined />}>
-                            导入配置
+                        <Button
+                            icon={importing ? <LoadingOutlined /> : <UploadOutlined />}
+                            loading={importing}
+                            disabled={importing}
+                        >
+                            {importing ? '导入中...' : '导入配置'}
                         </Button>
                     </Upload>,
+                    <Popconfirm
+                        key="batch-delete"
+                        title={`确定要删除选中的 ${selectedRows.length} 个实例吗？`}
+                        description="删除后无法恢复，请谨慎操作！"
+                        onConfirm={handleBatchDelete}
+                        disabled={selectedRows.length === 0 || batchDeleting}
+                    >
+                        <Button
+                            danger
+                            icon={batchDeleting ? <LoadingOutlined /> : <DeleteOutlined />}
+                            disabled={selectedRows.length === 0 || batchDeleting}
+                            loading={batchDeleting}
+                        >
+                            {batchDeleting ? '删除中...' : `批量删除 (${selectedRows.length})`}
+                        </Button>
+                    </Popconfirm>,
                     <Button
                         key="export"
                         onClick={handleExport}

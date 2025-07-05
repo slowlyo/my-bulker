@@ -130,13 +130,34 @@ func (s *InstanceService) Update(id uint, req *model.UpdateInstanceRequest) (*mo
 // Delete 删除实例
 func (s *InstanceService) Delete(id uint) error {
 	return database.GetDB().Transaction(func(tx *gorm.DB) error {
-		// 首先删除与该实例关联的数据库记录
-		if err := tx.Where("instance_id = ?", id).Delete(&model.Database{}).Error; err != nil {
+		// 首先硬删除与该实例关联的数据库记录
+		if err := tx.Unscoped().Where("instance_id = ?", id).Delete(&model.Database{}).Error; err != nil {
 			return err
 		}
 
-		// 然后删除实例本身
-		if err := tx.Delete(&model.Instance{}, id).Error; err != nil {
+		// 然后硬删除实例本身
+		if err := tx.Unscoped().Delete(&model.Instance{}, id).Error; err != nil {
+			return err
+		}
+
+		return nil
+	})
+}
+
+// BatchDelete 批量删除实例
+func (s *InstanceService) BatchDelete(ids []uint) error {
+	if len(ids) == 0 {
+		return nil
+	}
+
+	return database.GetDB().Transaction(func(tx *gorm.DB) error {
+		// 首先硬删除与这些实例关联的数据库记录
+		if err := tx.Unscoped().Where("instance_id IN ?", ids).Delete(&model.Database{}).Error; err != nil {
+			return err
+		}
+
+		// 然后批量硬删除实例本身
+		if err := tx.Unscoped().Where("id IN ?", ids).Delete(&model.Instance{}).Error; err != nil {
 			return err
 		}
 
@@ -476,6 +497,13 @@ func (s *InstanceService) ImportInstances(fileContent io.Reader) (*model.ImportS
 			summary.Errors = append(summary.Errors, fmt.Sprintf("实例 '%s' 已存在，已跳过", instance.Name))
 			continue
 		}
+
+		// 清除ID和时间戳字段，让数据库自动生成
+		instance.ID = 0
+		instance.CreatedAt = time.Time{}
+		instance.UpdatedAt = time.Time{}
+		instance.DeletedAt = gorm.DeletedAt{}
+		instance.LastSyncAt = nil
 
 		// 获取数据库版本
 		version, err := s.getMySQLVersion(instance.Host, instance.Port, instance.Username, instance.Password, instance.Params)

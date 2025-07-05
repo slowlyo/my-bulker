@@ -59,3 +59,8 @@ type InstanceListResponse struct {
 type SyncDatabasesRequest struct {
 	InstanceIDs []uint `json:"instance_ids" validate:"required,min=1"` // 实例ID列表
 }
+
+// BatchDeleteInstancesRequest 批量删除实例请求
+type BatchDeleteInstancesRequest struct {
+	InstanceIDs []uint `json:"instance_ids" validate:"required,min=1"` // 实例ID列表
+}
