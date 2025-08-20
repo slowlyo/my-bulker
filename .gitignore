@@ -2,5 +2,7 @@ data
 .vscode
 .idea
 
+.env
+
 .cursor/rules/user.mdc
 ui/dist
