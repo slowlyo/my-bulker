@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { PageContainer } from '@ant-design/pro-components';
-import { Card, Descriptions, Tag, Space, Button, Spin, message, Tabs, Collapse, Tooltip } from 'antd';
+import { Card, Descriptions, Tag, Space, Button, Spin, message, Tabs, Collapse, Tooltip, Row, Col } from 'antd';
 import { ArrowLeftOutlined, ReloadOutlined } from '@ant-design/icons';
 import { useParams, history, useLocation } from '@umijs/max';
 import { getQueryTaskDetail, getQueryTaskSQLExecutions, getQueryTaskSQLs, runQueryTask, getQueryTaskSQLResult } from '@/services/queryTask/QueryTaskController';
@@ -196,11 +196,17 @@ const QueryTaskDetailPage: React.FC = () => {
             key: 'detail',
             label: '任务详情',
             children: (
-                <div>
-                    <QueryTaskBaseInfo task={task} status={status} />
-                    <TargetDatabases databases={task.databases} />
+                <Space direction="vertical" style={{ width: '100%' }} size={16}>
+                    <Row gutter={16}>
+                        <Col span={8}>
+                            <QueryTaskBaseInfo task={task} status={status} />
+                        </Col>
+                        <Col span={16}>
+                            <TargetDatabases databases={task.databases} />
+                        </Col>
+                    </Row>
                     <TaskSQLs sqls={sqlList} />
-                </div>
+                </Space>
             ),
         },
         {
@@ -280,8 +286,13 @@ const QueryTaskDetailPage: React.FC = () => {
             <Tabs 
                 defaultActiveKey="detail" 
                 items={tabItems}
-                style={{ marginTop: 16 }}
                 activeKey={activeTab}
+                style={{ marginTop: 8 }}
+                tabBarStyle={{ 
+                    marginBottom: 20,
+                    paddingLeft: 4,
+                    borderBottom: '1px solid #f0f0f0' 
+                }}
                 onChange={(key) => {
                     setActiveTab(key);
                     // 更新地址栏参数

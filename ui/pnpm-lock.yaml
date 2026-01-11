@@ -8,18 +8,33 @@ importers:
 
   .:
     dependencies:
+      '@ag-grid-community/locale':
+        specifier: ^35.0.0
+        version: 35.0.0
       '@ant-design/icons':
         specifier: ^5.0.1
         version: 5.6.1(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
       '@ant-design/pro-components':
         specifier: ^2.4.4
         version: 2.8.9(antd@5.26.0(date-fns@2.30.0)(moment@2.30.1)(react-dom@18.3.1(react@18.3.1))(react@18.3.1))(rc-field-form@2.7.0(react-dom@18.3.1(react@18.3.1))(react@18.3.1))(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+      '@monaco-editor/react':
+        specifier: ^4.6.0
+        version: 4.7.0(monaco-editor@0.52.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
       '@umijs/max':
         specifier: ^4.4.11
         version: 4.4.11(@babel/core@7.27.4)(@types/node@24.0.1)(@types/react-dom@18.3.7(@types/react@18.3.23))(@types/react@18.3.23)(dva@2.5.0-beta.2(react-dom@18.3.1(react@18.3.1))(react@18.3.1))(lightningcss@1.22.1)(prettier@2.8.8)(rc-field-form@2.7.0(react-dom@18.3.1(react@18.3.1))(react@18.3.1))(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(rollup@3.29.5)(terser@5.42.0)(type-fest@1.4.0)(typescript@5.8.3)(webpack@5.99.9)
+      ag-grid-community:
+        specifier: ^35.0.0
+        version: 35.0.0
+      ag-grid-react:
+        specifier: ^35.0.0
+        version: 35.0.0(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
       antd:
         specifier: ^5.26.0
         version: 5.26.0(date-fns@2.30.0)(moment@2.30.1)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+      monaco-editor:
+        specifier: ^0.52.0
+        version: 0.52.2
     devDependencies:
       '@types/react':
         specifier: ^18.0.33
@@ -38,6 +53,9 @@ importers:
         version: 5.8.3
 
 packages:
+
+  '@ag-grid-community/locale@35.0.0':
+    resolution: {integrity: sha512-WzCa7VdX2D2XMifDCG8pBXUOdrpnYGd6gT/J+HLH3oGnQAXLk31r7WvvVmgKuFD6xGetPzg4hWX79GdJssVxTQ==}
 
   '@ahooksjs/use-request@2.8.15':
     resolution: {integrity: sha512-xhVaM4fyIiAMdVFuuU5i3CFUdFa/IblF+fvITVMFaUEO3w/V5tVCAF6WIA3T03n1/RPuzRkA7Ao1PFtSGtGelw==}
@@ -936,6 +954,16 @@ packages:
   '@module-federation/webpack-bundler-runtime@0.8.12':
     resolution: {integrity: sha512-zd343RO7/R7Xjh5ym5KdnYQ70z4LBmMxWsa44FS0nyNv04sOq6V1eZSCGKbEhbfqqhbS5Wfj8OzJyedeVvV/OQ==}
 
+  '@monaco-editor/loader@1.7.0':
+    resolution: {integrity: sha512-gIwR1HrJrrx+vfyOhYmCZ0/JcWqG5kbfG7+d3f/C1LXk2EvzAbHSg3MQ5lO2sMlo9izoAZ04shohfKLVT6crVA==}
+
+  '@monaco-editor/react@4.7.0':
+    resolution: {integrity: sha512-cyzXQCtO47ydzxpQtCGSQGOC8Gk3ZUeBXFAxD+CWXYFo5OqZyZUonFl0DwUlTyAfRHntBfw2p3w4s9R6oe1eCA==}
+    peerDependencies:
+      monaco-editor: '>= 0.25.0 < 1'
+      react: ^16.8.0 || ^17.0.0 || ^18.0.0 || ^19.0.0
+      react-dom: ^16.8.0 || ^17.0.0 || ^18.0.0 || ^19.0.0
+
   '@napi-rs/nice-android-arm-eabi@1.0.1':
     resolution: {integrity: sha512-5qpvOu5IGwDo7MEKVqqyAxF90I6aLj4n07OzpARdgDRfz8UbBztTByBp0RC59r3J1Ij8uzYi6jI7r5Lws7nn6w==}
     engines: {node: '>= 10'}
@@ -1775,6 +1803,18 @@ packages:
 
   add-dom-event-listener@1.1.0:
     resolution: {integrity: sha512-WCxx1ixHT0GQU9hb0KI/mhgRQhnU+U3GvwY6ZvVjYq8rsihIGoaIOUbY0yMPBxLH5MDtr0kz3fisWGNcbWW7Jw==}
+
+  ag-charts-types@13.0.0:
+    resolution: {integrity: sha512-mqOmKS0q4s2tt/C+CBG2Z+HWrSKYvRUCAlQzcKXKfARE3v/KdnBuxfjafa2c8ivElTTywdVdOe0q52Cow2Oggw==}
+
+  ag-grid-community@35.0.0:
+    resolution: {integrity: sha512-Cz3MA98zZygPwvCi8OKIhP0nea+YXdx8r5MwIXqVqnQwb/BEL05nGxwovIpelL6spv3jNlHQrTVgt4lw9J+nyg==}
+
+  ag-grid-react@35.0.0:
+    resolution: {integrity: sha512-ZmAjDnLONYja3IazKnMsqWZ8ZsJNTOTVQQX2tXNEkDHTMlVqIkDrcVU2f/o8awJhLCZhOMh7bE1YmYG/yHZLOg==}
+    peerDependencies:
+      react: ^16.8.0 || ^17.0.0 || ^18.0.0 || ^19.0.0
+      react-dom: ^16.8.0 || ^17.0.0 || ^18.0.0 || ^19.0.0
 
   ajv-formats@2.1.1:
     resolution: {integrity: sha512-Wx0Kx52hxE7C18hkMEggYlEifqWZtYaRgouJor+WMdPnQyEK13vgEWyVNup7SoeeoLMsr4kf5h6dOW11I15MUA==}
@@ -3913,6 +3953,9 @@ packages:
   moment@2.30.1:
     resolution: {integrity: sha512-uEmtNhbDOrWPFS+hdjFCBfy9f2YoyzRpwcl+DqpC6taX21FzsTLQVbMV/W7PzNSX6x/bhC1zA3c2UQ5NzH6how==}
 
+  monaco-editor@0.52.2:
+    resolution: {integrity: sha512-GEQWEZmfkOGLdd3XK8ryrfWz3AIP8YymVXiPHEdewrUq7mh0qrKrfHLNCXcbB6sTnMLnOZ3ztSiKcciFUkIJwQ==}
+
   ms@2.0.0:
     resolution: {integrity: sha512-Tpp60P6IUJDTuOq/5Z8cdskzJujfwqfOTkrwIwj7IRISpnkJnT6SyJ4PCPnGMoFjC9ddhal5KVIYtAt97ix05A==}
 
@@ -5570,6 +5613,9 @@ packages:
   stackframe@1.3.4:
     resolution: {integrity: sha512-oeVtt7eWQS+Na6F//S4kJ2K2VbRlS9D43mAlMyVpVWovy9o+jfgH8O9agzANzaiLjclA0oYzUXEM4PurhSUChw==}
 
+  state-local@1.0.7:
+    resolution: {integrity: sha512-HTEHMNieakEnoe33shBYcZ7NX83ACUjCu8c40iOGEZsngj9zRnkqS9j1pqQPXwobB0ZcVTk27REb7COQ0UR59w==}
+
   statuses@2.0.1:
     resolution: {integrity: sha512-RwNA9Z/7PrK06rYLIzFMlaF+l73iwpzsqRIFgbMLbTcLD6cOao82TaWefPXQvB2fOC4AjuYSEndS7N/mTCbkdQ==}
     engines: {node: '>= 0.8'}
@@ -6176,6 +6222,8 @@ packages:
     resolution: {integrity: sha512-hbP9FpSZf7pkS7hRVUrOjhwKJNyampPgtXKc3AN6DsWtoHsg2Sb4SQaS4Tcay380zSwd2VPo9G9180emBACp5g==}
 
 snapshots:
+
+  '@ag-grid-community/locale@35.0.0': {}
 
   '@ahooksjs/use-request@2.8.15(react@18.3.1)':
     dependencies:
@@ -7381,6 +7429,17 @@ snapshots:
       '@module-federation/runtime': 0.8.12
       '@module-federation/sdk': 0.8.12
 
+  '@monaco-editor/loader@1.7.0':
+    dependencies:
+      state-local: 1.0.7
+
+  '@monaco-editor/react@4.7.0(monaco-editor@0.52.2)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)':
+    dependencies:
+      '@monaco-editor/loader': 1.7.0
+      monaco-editor: 0.52.2
+      react: 18.3.1
+      react-dom: 18.3.1(react@18.3.1)
+
   '@napi-rs/nice-android-arm-eabi@1.0.1':
     optional: true
 
@@ -7951,7 +8010,7 @@ snapshots:
       postcss-preset-env: 7.5.0(postcss@8.5.5)
       rollup-plugin-visualizer: 5.9.0(rollup@3.29.5)
       systemjs: 6.15.1
-      vite: 4.5.2(@types/node@24.0.1)(less@4.1.3)(lightningcss@1.22.1)(terser@5.42.0)
+      vite: 4.5.2(@types/node@24.0.1)(less@4.3.0)(lightningcss@1.22.1)(terser@5.42.0)
     transitivePeerDependencies:
       - '@types/node'
       - lightningcss
@@ -8449,7 +8508,7 @@ snapshots:
       '@babel/plugin-transform-react-jsx-self': 7.27.1(@babel/core@7.27.4)
       '@babel/plugin-transform-react-jsx-source': 7.27.1(@babel/core@7.27.4)
       react-refresh: 0.14.2
-      vite: 4.5.2(@types/node@24.0.1)(less@4.1.3)(lightningcss@1.22.1)(terser@5.42.0)
+      vite: 4.5.2(@types/node@24.0.1)(less@4.3.0)(lightningcss@1.22.1)(terser@5.42.0)
     transitivePeerDependencies:
       - supports-color
 
@@ -8547,6 +8606,19 @@ snapshots:
   add-dom-event-listener@1.1.0:
     dependencies:
       object-assign: 4.1.1
+
+  ag-charts-types@13.0.0: {}
+
+  ag-grid-community@35.0.0:
+    dependencies:
+      ag-charts-types: 13.0.0
+
+  ag-grid-react@35.0.0(react-dom@18.3.1(react@18.3.1))(react@18.3.1):
+    dependencies:
+      ag-grid-community: 35.0.0
+      prop-types: 15.8.1
+      react: 18.3.1
+      react-dom: 18.3.1(react@18.3.1)
 
   ajv-formats@2.1.1(ajv@8.17.1):
     optionalDependencies:
@@ -11136,6 +11208,8 @@ snapshots:
 
   moment@2.30.1: {}
 
+  monaco-editor@0.52.2: {}
+
   ms@2.0.0: {}
 
   ms@2.1.3: {}
@@ -13085,6 +13159,8 @@ snapshots:
 
   stackframe@1.3.4: {}
 
+  state-local@1.0.7: {}
+
   statuses@2.0.1: {}
 
   stop-iteration-iterator@1.1.0:
@@ -13646,7 +13722,7 @@ snapshots:
 
   vary@1.1.2: {}
 
-  vite@4.5.2(@types/node@24.0.1)(less@4.1.3)(lightningcss@1.22.1)(terser@5.42.0):
+  vite@4.5.2(@types/node@24.0.1)(less@4.3.0)(lightningcss@1.22.1)(terser@5.42.0):
     dependencies:
       esbuild: 0.18.20
       postcss: 8.5.5
@@ -13654,7 +13730,7 @@ snapshots:
     optionalDependencies:
       '@types/node': 24.0.1
       fsevents: 2.3.3
-      less: 4.1.3
+      less: 4.3.0
       lightningcss: 1.22.1
       terser: 5.42.0
 

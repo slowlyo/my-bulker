@@ -9,10 +9,15 @@
     "start": "npm run dev"
   },
   "dependencies": {
+    "@ag-grid-community/locale": "^35.0.0",
     "@ant-design/icons": "^5.0.1",
     "@ant-design/pro-components": "^2.4.4",
+    "@monaco-editor/react": "^4.6.0",
     "@umijs/max": "^4.4.11",
-    "antd": "^5.26.0"
+    "ag-grid-community": "^35.0.0",
+    "ag-grid-react": "^35.0.0",
+    "antd": "^5.26.0",
+    "monaco-editor": "^0.52.0"
   },
   "devDependencies": {
     "@types/react": "^18.0.33",

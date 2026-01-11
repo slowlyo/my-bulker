@@ -36,12 +36,12 @@ const TargetDatabases: React.FC<TargetDatabasesProps> = ({ databases }) => {
     }
 
     return (
-        <Card title="目标数据库" style={{ marginBottom: 16 }}>
+        <Card title="目标数据库" style={{ height: '100%' }}>
             <div style={{ 
                 display: 'grid', 
-                gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))',
+                gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))',
                 gap: '8px',
-                maxHeight: '400px',
+                maxHeight: '260px',
                 overflow: 'auto',
                 paddingRight: '4px'
             }}>

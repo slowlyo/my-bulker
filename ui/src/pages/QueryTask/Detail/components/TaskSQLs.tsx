@@ -1,10 +1,11 @@
 import React from 'react';
-import { Card, Collapse, Tag, Space } from 'antd';
-import { CodeOutlined, DatabaseOutlined, ClockCircleOutlined } from '@ant-design/icons';
+import { Card, Collapse, Tag, Space, Row, Col, Typography, Divider } from 'antd';
+import { CodeOutlined, DatabaseOutlined, ClockCircleOutlined, InfoCircleOutlined } from '@ant-design/icons';
 import { QueryTaskSQLInfo } from '@/services/queryTask/typings';
 import { formatDateTime } from '@/utils/format';
 
 const { Panel } = Collapse;
+const { Text } = Typography;
 
 interface TaskSQLsProps {
     sqls: QueryTaskSQLInfo[];
@@ -59,86 +60,65 @@ const TaskSQLs: React.FC<TaskSQLsProps> = ({ sqls }) => {
                         background: '#fff'
                     },
                     children: (
-                        <div style={{ padding: '16px 0' }}>
-                            {/* SQL内容 */}
-                            <div style={{ marginBottom: '16px' }}>
-                                <div style={{ 
-                                    fontSize: '12px', 
-                                    color: '#666', 
-                                    marginBottom: '8px',
-                                    fontWeight: '500'
-                                }}>
-                                    SQL内容:
-                                </div>
-                                <div style={{
-                                    background: '#f8f9fa',
-                                    border: '1px solid #e8e8e8',
-                                    borderRadius: '4px',
-                                    padding: '12px',
-                                    fontFamily: 'Monaco, Menlo, "Ubuntu Mono", monospace',
-                                    fontSize: '13px',
-                                    lineHeight: '1.5',
-                                    whiteSpace: 'pre-wrap',
-                                    wordBreak: 'break-word',
-                                    maxHeight: '200px',
-                                    overflow: 'auto'
-                                }}>
-                                    {sql.sql_content}
-                                </div>
-                            </div>
-
-                            {/* 执行信息 */}
-                            <div style={{ 
-                                display: 'grid', 
-                                gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', 
-                                gap: '12px',
-                                fontSize: '12px'
-                            }}>
-                                <div style={{ 
-                                    border: '1px solid #e8e8e8', 
-                                    borderRadius: '4px', 
-                                    padding: '8px',
-                                    background: '#fafafa'
-                                }}>
-                                    <div style={{ color: '#666', marginBottom: '4px' }}>
-                                        <ClockCircleOutlined style={{ marginRight: '4px' }} />
-                                        开始时间
+                        <div style={{ padding: '8px 0' }}>
+                            <Row gutter={24}>
+                                <Col span={16}>
+                                    <div style={{ 
+                                        fontSize: '12px', 
+                                        color: '#8c8c8c', 
+                                        marginBottom: '8px',
+                                        fontWeight: '500',
+                                        display: 'flex',
+                                        alignItems: 'center'
+                                    }}>
+                                        <CodeOutlined style={{ marginRight: '4px' }} />
+                                        SQL 内容
                                     </div>
-                                    <div style={{ color: '#262626' }}>
-                                        {formatDateTime(sql.started_at)}
+                                    <div style={{
+                                        background: '#f5f5f5',
+                                        border: '1px solid #f0f0f0',
+                                        borderRadius: '6px',
+                                        padding: '12px',
+                                        fontFamily: 'SFMono-Regular, Consolas, "Liberation Mono", Menlo, monospace',
+                                        fontSize: '13px',
+                                        lineHeight: '1.6',
+                                        whiteSpace: 'pre-wrap',
+                                        wordBreak: 'break-all',
+                                        maxHeight: '300px',
+                                        overflow: 'auto',
+                                        color: '#1f1f1f'
+                                    }}>
+                                        {sql.sql_content}
                                     </div>
-                                </div>
-                                
-                                <div style={{ 
-                                    border: '1px solid #e8e8e8', 
-                                    borderRadius: '4px', 
-                                    padding: '8px',
-                                    background: '#fafafa'
-                                }}>
-                                    <div style={{ color: '#666', marginBottom: '4px' }}>
-                                        <ClockCircleOutlined style={{ marginRight: '4px' }} />
-                                        完成时间
+                                </Col>
+                                <Col span={8}>
+                                    <div style={{ 
+                                        fontSize: '12px', 
+                                        color: '#8c8c8c', 
+                                        marginBottom: '8px',
+                                        fontWeight: '500',
+                                        display: 'flex',
+                                        alignItems: 'center'
+                                    }}>
+                                        <InfoCircleOutlined style={{ marginRight: '4px' }} />
+                                        执行详情
                                     </div>
-                                    <div style={{ color: '#262626' }}>
-                                        {formatDateTime(sql.completed_at)}
-                                    </div>
-                                </div>
-                                
-                                <div style={{ 
-                                    border: '1px solid #e8e8e8', 
-                                    borderRadius: '4px', 
-                                    padding: '8px',
-                                    background: '#fafafa'
-                                }}>
-                                    <div style={{ color: '#666', marginBottom: '4px' }}>
-                                        <DatabaseOutlined style={{ marginRight: '4px' }} />
-                                        结果表名
-                                    </div>
-                                    <div style={{ color: '#262626', fontFamily: 'monospace' }}>
-                                        {sql.result_table_name}
-                                    </div>
-                                </div>
-                            </div>
+                                    <Space direction="vertical" style={{ width: '100%' }} size={12}>
+                                        <div style={{ background: '#fafafa', padding: '8px 12px', borderRadius: '6px', border: '1px solid #f0f0f0' }}>
+                                            <div style={{ color: '#8c8c8c', fontSize: '11px', marginBottom: '4px' }}>结果表名</div>
+                                            <Text code style={{ fontSize: '12px' }}>{sql.result_table_name}</Text>
+                                        </div>
+                                        <div style={{ background: '#fafafa', padding: '8px 12px', borderRadius: '6px', border: '1px solid #f0f0f0' }}>
+                                            <div style={{ color: '#8c8c8c', fontSize: '11px', marginBottom: '4px' }}>开始时间</div>
+                                            <div style={{ fontSize: '12px', color: '#262626' }}>{formatDateTime(sql.started_at)}</div>
+                                        </div>
+                                        <div style={{ background: '#fafafa', padding: '8px 12px', borderRadius: '6px', border: '1px solid #f0f0f0' }}>
+                                            <div style={{ color: '#8c8c8c', fontSize: '11px', marginBottom: '4px' }}>完成时间</div>
+                                            <div style={{ fontSize: '12px', color: '#262626' }}>{formatDateTime(sql.completed_at)}</div>
+                                        </div>
+                                    </Space>
+                                </Col>
+                            </Row>
                         </div>
                     )
                 }))}

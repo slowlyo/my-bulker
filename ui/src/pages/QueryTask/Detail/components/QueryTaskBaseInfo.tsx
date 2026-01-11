@@ -1,5 +1,5 @@
 import React from 'react';
-import { Card, Descriptions, Tag } from 'antd';
+import { Card, Descriptions, Tag, Row, Col } from 'antd';
 import { QueryTaskInfo } from '@/services/queryTask/typings';
 import { formatDateTime } from '@/utils/format';
 
@@ -9,28 +9,23 @@ interface QueryTaskBaseInfoProps {
 }
 
 const QueryTaskBaseInfo: React.FC<QueryTaskBaseInfoProps> = ({ task, status }) => (
-    <Card title="基本信息" style={{ marginBottom: 16 }}>
-        <Descriptions column={2} bordered>
+    <Card title="基本信息" style={{ height: '100%' }}>
+        <Descriptions column={1} bordered size="small">
             <Descriptions.Item label="任务名称">
                 <strong>{task.task_name}</strong>
             </Descriptions.Item>
             <Descriptions.Item label="任务状态">
                 <Tag color={status.color}>{status.text}</Tag>
             </Descriptions.Item>
-            <Descriptions.Item label="任务描述" span={2}>
+            <Descriptions.Item label="任务描述">
                 {task.description || '-'}
             </Descriptions.Item>
-            <Descriptions.Item label="创建时间">
-                {formatDateTime(task.created_at)}
-            </Descriptions.Item>
-            <Descriptions.Item label="更新时间">
-                {formatDateTime(task.updated_at)}
-            </Descriptions.Item>
-            <Descriptions.Item label="开始时间">
-                {formatDateTime(task.started_at)}
-            </Descriptions.Item>
-            <Descriptions.Item label="完成时间">
-                {formatDateTime(task.completed_at)}
+            <Descriptions.Item label="时间进度">
+                <div style={{ fontSize: '12px' }}>
+                    <div>创建: {formatDateTime(task.created_at)}</div>
+                    {task.started_at && <div>开始: {formatDateTime(task.started_at)}</div>}
+                    {task.completed_at && <div>完成: {formatDateTime(task.completed_at)}</div>}
+                </div>
             </Descriptions.Item>
         </Descriptions>
     </Card>

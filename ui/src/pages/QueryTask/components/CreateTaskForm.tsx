@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Form, Input, Select, Button, Space, Radio, Alert, Drawer, Modal, message } from 'antd';
+import { Form, Input, Select, Button, Space, Radio, Alert, Drawer, Modal, message, Row, Col, Divider, Card } from 'antd';
 import { CreateQueryTaskRequest } from '@/services/queryTask/typings';
 import { getInstanceOptions } from '@/services/instance/InstanceController';
 import DatabaseSelector from './DatabaseSelector';
@@ -8,7 +8,6 @@ import { validateSQL } from '@/services/queryTask/QueryTaskController';
 import { QueryTaskTemplate, getQueryTaskTemplates, saveQueryTaskTemplate, deleteQueryTaskTemplate } from '@/utils/queryTaskTemplate';
 import { DeleteOutlined } from '@ant-design/icons';
 
-const { TextArea } = Input;
 const { Option } = Select;
 
 interface CreateTaskFormProps {
@@ -208,137 +207,147 @@ const CreateTaskForm: React.FC<CreateTaskFormProps> = ({
             open={visible}
             onClose={onClose}
             width={800}
-            extra={
-                <Space>
-                    <Button onClick={onClose}>
-                        取消
-                    </Button>
-                    <Button type="primary" onClick={handleSubmit} loading={loading}>
-                        创建任务
-                    </Button>
-                </Space>
+            footer={
+                <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+                    <Space>
+                        <Button onClick={onClose}>
+                            取消
+                        </Button>
+                        <Button type="primary" onClick={handleSubmit} loading={loading}>
+                            创建任务
+                        </Button>
+                    </Space>
+                </div>
             }
         >
             <Form
                 form={form}
                 layout="vertical"
             >
-                <Form.Item
-                    label="查询模板"
-                >
-                    <Space.Compact style={{ width: '100%' }}>
-                        <Select
-                            placeholder="从模板加载或选择模板进行管理"
-                            value={selectedTemplate}
-                            onChange={handleTemplateSelect}
-                            allowClear
-                            showSearch
-                            filterOption={(input, option) =>
-                                (option?.label ?? '').toLowerCase().includes(input.toLowerCase())
-                            }
-                            options={templates.map(t => ({ value: t.name, label: t.name }))}
-                        />
-                         <Button onClick={handleShowSaveModal}>
-                            存为模板
-                        </Button>
-                        <Button
-                            icon={<DeleteOutlined />}
-                            danger
-                            disabled={!selectedTemplate}
-                            onClick={handleDeleteTemplate}
-                        />
-                    </Space.Compact>
-                </Form.Item>
+                <Card size="small" styles={{ body: { padding: 16 } }}>
+                    <Form.Item label="查询模板">
+                        <Space.Compact style={{ width: '100%' }}>
+                            <Select
+                                placeholder="从模板加载或选择模板进行管理"
+                                value={selectedTemplate}
+                                onChange={handleTemplateSelect}
+                                allowClear
+                                showSearch
+                                filterOption={(input, option) =>
+                                    (option?.label ?? '').toLowerCase().includes(input.toLowerCase())
+                                }
+                                options={templates.map(t => ({ value: t.name, label: t.name }))}
+                            />
+                            <Button onClick={handleShowSaveModal}>
+                                存为模板
+                            </Button>
+                            <Button
+                                icon={<DeleteOutlined />}
+                                danger
+                                disabled={!selectedTemplate}
+                                onClick={handleDeleteTemplate}
+                            />
+                        </Space.Compact>
+                    </Form.Item>
 
-                <Form.Item
-                    name="task_name"
-                    label="任务名称"
-                    rules={[
-                        { required: true, message: '请输入任务名称' },
-                        { max: 100, message: '任务名称不能超过100个字符' },
-                    ]}
-                >
-                    <Input placeholder="请输入任务名称" allowClear />
-                </Form.Item>
+                    <Row gutter={16}>
+                        <Col xs={24} md={12}>
+                            <Form.Item
+                                name="task_name"
+                                label="任务名称"
+                                rules={[
+                                    { required: true, message: '请输入任务名称' },
+                                    { max: 100, message: '任务名称不能超过100个字符' },
+                                ]}
+                            >
+                                <Input placeholder="请输入任务名称" allowClear />
+                            </Form.Item>
+                        </Col>
+                        <Col xs={24} md={12}>
+                            <Form.Item
+                                name="description"
+                                label="任务描述"
+                                rules={[
+                                    { max: 500, message: '任务描述不能超过500个字符' },
+                                ]}
+                            >
+                                <Input placeholder="请输入任务描述（可选）" allowClear maxLength={500} />
+                            </Form.Item>
+                        </Col>
+                    </Row>
 
-                <Form.Item
-                    name="description"
-                    label="任务描述"
-                    rules={[
-                        { max: 500, message: '任务描述不能超过500个字符' },
-                    ]}
-                >
-                    <TextArea
-                        rows={2}
-                        placeholder="请输入任务描述（可选）"
-                        showCount
-                        maxLength={500}
-                    />
-                </Form.Item>
+                    <Row gutter={16}>
+                        <Col xs={24} md={16}>
+                            <Form.Item
+                                name="instance_ids"
+                                label="选择实例"
+                                rules={[{ required: true, message: '请选择实例' }]}
+                            >
+                                <Select
+                                    mode="multiple"
+                                    placeholder="请选择实例"
+                                    onChange={handleInstanceChange}
+                                    showSearch
+                                    allowClear
+                                    filterOption={(input, option) => {
+                                        if (!option?.children) return false;
+                                        return String(option.children).toLowerCase().includes(input.toLowerCase());
+                                    }}
+                                >
+                                    {instances.map(instance => (
+                                        <Option key={instance.value} value={instance.value}>
+                                            {instance.label}
+                                        </Option>
+                                    ))}
+                                </Select>
+                            </Form.Item>
+                        </Col>
+                        <Col xs={24} md={8}>
+                            <Form.Item
+                                name="database_mode"
+                                label="选择模式"
+                                rules={[{ required: true, message: '请选择数据库选择模式' }]}
+                            >
+                                <Radio.Group
+                                    optionType="button"
+                                    buttonStyle="solid"
+                                    onChange={(e) => handleDatabaseModeChange(e.target.value)}
+                                >
+                                    <Radio value="include">包含</Radio>
+                                    <Radio value="exclude">排除</Radio>
+                                </Radio.Group>
+                            </Form.Item>
+                        </Col>
+                    </Row>
 
-                <Form.Item
-                    name="instance_ids"
-                    label="选择实例"
-                    rules={[{ required: true, message: '请选择实例' }]}
-                >
-                    <Select
-                        mode="multiple"
-                        placeholder="请选择实例"
-                        onChange={handleInstanceChange}
-                        showSearch
-                        allowClear
-                        filterOption={(input, option) => {
-                            if (!option?.children) return false;
-                            return String(option.children).toLowerCase().includes(input.toLowerCase());
-                        }}
+                    <Alert message={modeDesc.message} type={modeDesc.type} showIcon />
+                </Card>
+
+                <Divider style={{ margin: '16px 0' }} />
+
+                <Card size="small" styles={{ body: { padding: 16 } }}>
+                    <Form.Item
+                        name="selected_dbs"
+                        label={databaseMode === 'include' ? '包含的数据库' : '排除的数据库'}
+                        rules={[{ required: true, message: '请选择数据库' }]}
                     >
-                        {instances.map(instance => (
-                            <Option key={instance.value} value={instance.value}>
-                                {instance.label}
-                            </Option>
-                        ))}
-                    </Select>
-                </Form.Item>
+                        <DatabaseSelector
+                            instanceIds={selectedInstanceIds}
+                            disabled={selectedInstanceIds.length === 0}
+                        />
+                    </Form.Item>
 
-                <Form.Item
-                    name="database_mode"
-                    label="选择模式"
-                    rules={[{ required: true, message: '请选择数据库选择模式' }]}
-                >
-                    <Radio.Group onChange={(e) => handleDatabaseModeChange(e.target.value)}>
-                        <Radio value="include">包含模式</Radio>
-                        <Radio value="exclude">排除模式</Radio>
-                    </Radio.Group>
-                </Form.Item>
-
-                <Alert
-                    message={modeDesc.message}
-                    type={modeDesc.type}
-                    showIcon
-                    style={{ marginBottom: 14 }}
-                />
-
-                <Form.Item
-                    name="selected_dbs"
-                    label={databaseMode === 'include' ? '包含的数据库' : '排除的数据库'}
-                    rules={[{ required: true, message: '请选择数据库' }]}
-                >
-                    <DatabaseSelector 
-                        instanceIds={selectedInstanceIds}
-                        disabled={selectedInstanceIds.length === 0}
-                    />
-                </Form.Item>
-
-                <Form.Item
-                    name="sql_content"
-                    label="SQL内容"
-                    rules={[
-                        { required: true, message: '请输入SQL语句' },
-                        { min: 1, message: 'SQL语句不能为空' },
-                    ]}
-                >
-                    <SQLEditor />
-                </Form.Item>
+                    <Form.Item
+                        name="sql_content"
+                        label="SQL内容"
+                        rules={[
+                            { required: true, message: '请输入SQL语句' },
+                            { min: 1, message: 'SQL语句不能为空' },
+                        ]}
+                    >
+                        <SQLEditor />
+                    </Form.Item>
+                </Card>
             </Form>
         </Drawer>
 
