@@ -35,6 +35,15 @@ run-ui:
 	@echo "Running UI..."
 	@cd ui && pnpm dev
 
+# 开发模式：同时启动前后端
+.PHONY: dev
+dev:
+	@echo "Starting backend and frontend in development mode..."
+	@trap 'kill 0' INT TERM EXIT; \
+	$(MAKE) run & \
+	$(MAKE) run-ui & \
+	wait
+
 # 清理构建产物
 .PHONY: clean
 clean:
@@ -64,4 +73,7 @@ help:
 	@echo "  make build-ui  - Build the frontend application"
 	@echo "  make run-ui    - Run the frontend development server"
 	@echo ""
-	@echo "  make help   - Show this help message" 
+	@echo "Common commands:"
+	@echo "  make dev    - Start both backend and frontend for development"
+	@echo ""
+	@echo "  make help   - Show this help message"

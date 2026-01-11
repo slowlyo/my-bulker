@@ -71,4 +71,5 @@ export default defineConfig({
 
     npmClient: "pnpm",
     tailwindcss: {},
+    mako: {},
 });
