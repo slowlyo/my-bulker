@@ -6,3 +6,4 @@ data
 
 .cursor/rules/user.mdc
 ui/dist
+build

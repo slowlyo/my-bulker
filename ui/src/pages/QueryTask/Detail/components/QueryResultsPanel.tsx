@@ -207,39 +207,44 @@ const QueryResultsPanel = forwardRef<any, QueryResultsPanelProps>(
                                 }))}
                             />
                             {activeSQL && (
-                                <Space size={8}>
-                                    <Tooltip title={isSqlExpanded ? "隐藏 SQL" : "查看 SQL"}>
-                                        <Button
-                                            type="text"
-                                            icon={isSqlExpanded ? <EyeInvisibleOutlined /> : <EyeOutlined />}
-                                            onClick={() => setIsSqlExpanded(!isSqlExpanded)}
-                                        />
-                                    </Tooltip>
-                                    <Tooltip title="全屏查看表格">
-                                        <Button
-                                            type="text"
-                                            icon={<FullscreenOutlined />}
-                                            onClick={toggleFullScreen}
-                                        />
-                                    </Tooltip>
-                                    <Tooltip title="重置筛选和排序">
-                                        <Button
-                                            type="text"
-                                            icon={<FilterOutlined />}
-                                            onClick={resetFilters}
-                                        />
-                                    </Tooltip>
-                                    <Tooltip title="导出结果">
-                                        <Button
-                                            type="text"
-                                            icon={<DownloadOutlined />}
-                                            onClick={() => {
-                                                if (!activeSQL) return;
-                                                const url = `/api/query-tasks/sqls/${activeSQL.id}/export`;
-                                                window.open(url);
-                                            }}
-                                        />
-                                    </Tooltip>
+                                <Space size={16} style={{ marginLeft: 16 }}>
+                                    <Text type="secondary">
+                                        共 <Text strong>{total}</Text> 条记录
+                                    </Text>
+                                    <Space size={8}>
+                                        <Tooltip title={isSqlExpanded ? "隐藏 SQL" : "查看 SQL"}>
+                                            <Button
+                                                type="text"
+                                                icon={isSqlExpanded ? <EyeInvisibleOutlined /> : <EyeOutlined />}
+                                                onClick={() => setIsSqlExpanded(!isSqlExpanded)}
+                                            />
+                                        </Tooltip>
+                                        <Tooltip title="全屏查看表格">
+                                            <Button
+                                                type="text"
+                                                icon={<FullscreenOutlined />}
+                                                onClick={toggleFullScreen}
+                                            />
+                                        </Tooltip>
+                                        <Tooltip title="重置筛选和排序">
+                                            <Button
+                                                type="text"
+                                                icon={<FilterOutlined />}
+                                                onClick={resetFilters}
+                                            />
+                                        </Tooltip>
+                                        <Tooltip title="导出结果">
+                                            <Button
+                                                type="text"
+                                                icon={<DownloadOutlined />}
+                                                onClick={() => {
+                                                    if (!activeSQL) return;
+                                                    const url = `/api/query-tasks/sqls/${activeSQL.id}/export`;
+                                                    window.open(url);
+                                                }}
+                                            />
+                                        </Tooltip>
+                                    </Space>
                                 </Space>
                             )}
                         </div>
