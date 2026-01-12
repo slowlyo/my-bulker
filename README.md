@@ -85,6 +85,22 @@
 - **前端**: UmiJS, Ant Design Pro, Tailwind CSS
 - **数据库**: GORM (ORM), SQLite (默认元数据存储)
 
+## 🛠️ 本地开发 (Hot Reload)
+
+项目已配置 [Air](https://github.com/cosmtrek/air) 以支持 Go 后端的热重载。
+
+1. **安装 Air**:
+   ```bash
+   go install github.com/air-verse/air@latest
+   ```
+
+2. **运行 Air**:
+   在项目根目录下直接运行：
+   ```bash
+   air
+   ```
+   Air 会根据 `.air.toml` 自动编译并运行后端服务，并在代码修改后自动重新加载。
+
 ## 📸 应用预览
 
 ![home](./docs/images/home.png)

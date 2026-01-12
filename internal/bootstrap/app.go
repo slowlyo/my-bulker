@@ -5,6 +5,7 @@ import (
 	"io/fs"
 	"log"
 	"my-bulker/internal/pkg/database"
+	"my-bulker/internal/pkg/scheduler"
 	"my-bulker/internal/router"
 	"my-bulker/internal/service"
 	"net/http"
@@ -25,6 +26,9 @@ func NewApp(frontendFS embed.FS) *fiber.App {
 	// 启动调度服务
 	simpleSchedulerSvc := service.NewSimpleSchedulerService()
 	go simpleSchedulerSvc.Start()
+
+	// 启动通用调度器
+	go scheduler.Start()
 	// defer simpleSchedulerSvc.Stop() // Graceful shutdown should be handled.
 
 	// 创建 Fiber 应用实例

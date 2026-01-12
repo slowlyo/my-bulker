@@ -63,6 +63,14 @@ export default defineConfig({
             hideInMenu: true,
         },
         {
+            name: "文档生成",
+            path: "/db-doc",
+            component: "./DbDoc",
+            icon: "FileTextOutlined",
+        },
+
+        // 始终保持系统配置在最后
+        {
             name: "系统配置",
             path: "/config",
             component: "./Config",

@@ -17,6 +17,7 @@ func Register(app *fiber.App) {
 	sqlHandler := handler.NewSQLHandler()
 	configHandler := handler.NewConfigHandler()
 	dashboardHandler := handler.NewDashboardHandler()
+	dbDocHandler := handler.NewDbDocHandler()
 
 	// 全局中间件
 	app.Use(middleware.CORS())
@@ -75,5 +76,16 @@ func Register(app *fiber.App) {
 		api.Post("/configs/set", configHandler.SetConfig)             // 保存配置
 		api.Post("/configs/save", configHandler.SaveConfigs)          // 批量保存配置
 		api.Post("/configs/batch-get", configHandler.BatchGetConfigs) // 批量获取配置
+
+		// 数据库文档管理
+		dbDocs := api.Group("/db-docs")
+		{
+			dbDocs.Post("", dbDocHandler.Create)       // 创建任务
+			dbDocs.Put("/:id", dbDocHandler.Update)    // 更新任务
+			dbDocs.Delete("/:id", dbDocHandler.Delete) // 删除任务
+			dbDocs.Get("/:id", dbDocHandler.Get)       // 获取任务
+			dbDocs.Get("", dbDocHandler.List)          // 获取任务列表
+			dbDocs.Post("/:id/run", dbDocHandler.Run)  // 运行任务
+		}
 	}
 }

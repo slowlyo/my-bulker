@@ -3,14 +3,13 @@ package database
 import (
 	"database/sql"
 	"fmt"
+	"my-bulker/internal/model"
 	"net/url"
 	"os"
 	"path/filepath"
 	"strings"
 	"sync"
 	"time"
-
-	"my-bulker/internal/model"
 
 	"github.com/glebarez/sqlite"
 	_ "github.com/go-sql-driver/mysql"
@@ -87,6 +86,7 @@ func Init() error {
 			&model.QueryTaskSQL{},       // 查询任务SQL表（依赖 QueryTask）
 			&model.QueryTaskExecution{}, // 任务执行表（依赖 QueryTask、QueryTaskSQL、Instance）
 			&model.Config{},             // 配置表（无依赖）
+			&model.DbDocTask{},          // 数据库文档生成任务表（依赖 Instance, Database）
 		); err != nil {
 			initErr = fmt.Errorf("failed to migrate database: %v", err)
 			return

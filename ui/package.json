@@ -17,6 +17,8 @@
     "ag-grid-community": "^35.0.0",
     "ag-grid-react": "^35.0.0",
     "antd": "^5.26.0",
+    "cron-parser": "^5.4.0",
+    "dayjs": "^1.11.19",
     "monaco-editor": "^0.52.0"
   },
   "devDependencies": {
