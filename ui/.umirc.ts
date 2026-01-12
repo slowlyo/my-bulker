@@ -17,6 +17,7 @@ export default defineConfig({
         title: "My Bulker",
     },
     favicons: [ "mysql.png" ],
+    hash: true,
     history: {
         type: "hash",
     },
