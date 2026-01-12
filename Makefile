@@ -39,10 +39,8 @@ run-ui:
 .PHONY: dev
 dev:
 	@echo "Starting backend and frontend in development mode..."
-	@trap 'kill 0' INT TERM EXIT; \
-	$(MAKE) run & \
-	$(MAKE) run-ui & \
-	wait
+	@which air > /dev/null 2>&1 && (air &) || (go run $(MAIN_FILE) &) \
+	&& (cd ui && pnpm install && pnpm dev)
 
 # 清理构建产物
 .PHONY: clean
