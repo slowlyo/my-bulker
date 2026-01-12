@@ -362,25 +362,63 @@ func (s *InstanceService) syncDatabases(tx *gorm.DB, db *sql.DB, instanceID uint
 		return err
 	}
 
-	// 获取当前数据库ID列表
-	var currentDBIDs []uint
-	if err := tx.Model(&model.Database{}).Where("instance_id = ?", instanceID).Pluck("id", &currentDBIDs).Error; err != nil {
+	// 获取当前数据库记录（仅获取名称和 ID 以便对比）
+	var existingDBs []model.Database
+	if err := tx.Where("instance_id = ?", instanceID).Find(&existingDBs).Error; err != nil {
 		return err
 	}
 
-	// 硬删除当前实例下的所有相关数据
-	if len(currentDBIDs) > 0 {
-		// 删除数据库
-		if err := tx.Unscoped().Where("id IN (?)", currentDBIDs).Delete(&model.Database{}).Error; err != nil {
+	existingMap := make(map[string]model.Database)
+	for _, db := range existingDBs {
+		existingMap[db.Name] = db
+	}
+
+	var toCreate []model.Database
+	var toDeleteIDs []uint
+	processedNames := make(map[string]bool)
+
+	for _, db := range databases {
+		processedNames[db.Name] = true
+		if existing, ok := existingMap[db.Name]; ok {
+			// 更新现有记录
+			if err := tx.Model(&existing).Updates(model.Database{
+				CharacterSet: db.CharacterSet,
+				Collation:    db.Collation,
+				Size:         db.Size,
+				TableCount:   db.TableCount,
+			}).Error; err != nil {
+				return err
+			}
+		} else {
+			// 准备新建记录
+			toCreate = append(toCreate, db)
+		}
+	}
+
+	// 找出需要删除的记录（远程已不存在但本地存在的）
+	for name, db := range existingMap {
+		if !processedNames[name] {
+			toDeleteIDs = append(toDeleteIDs, db.ID)
+		}
+	}
+
+	// 批量删除
+	if len(toDeleteIDs) > 0 {
+		if err := tx.Unscoped().Delete(&model.Database{}, toDeleteIDs).Error; err != nil {
 			return err
 		}
 	}
 
-	// 批量创建数据库记录
-	for _, db := range databases {
-		if err := tx.Create(&db).Error; err != nil {
+	// 批量创建新记录
+	if len(toCreate) > 0 {
+		if err := tx.CreateInBatches(toCreate, 100).Error; err != nil {
 			return err
 		}
+	}
+
+	// 更新实例的最后同步时间
+	if err := tx.Model(&model.Instance{}).Where("id = ?", instanceID).Update("last_sync_at", time.Now()).Error; err != nil {
+		return err
 	}
 
 	return nil
