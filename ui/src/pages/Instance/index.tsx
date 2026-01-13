@@ -7,7 +7,7 @@ import InstanceForm from './components/InstanceForm';
 import { InstanceInfo, APIResponse } from '@/services/instance/typings';
 import { EditOutlined, DeleteOutlined, PlusOutlined, SyncOutlined, LoadingOutlined, UploadOutlined, DownloadOutlined, ClockCircleOutlined } from '@ant-design/icons';
 import { request } from '@umijs/max';
-import { formatRelativeTime } from '@/utils/format';
+import { formatRelativeTime, formatFrequency } from '@/utils/format';
 
 const InstancePage: React.FC = () => {
     const actionRef = useRef<ActionType>();
@@ -18,14 +18,6 @@ const InstancePage: React.FC = () => {
     const [exporting, setExporting] = useState(false);
     const [importing, setImporting] = useState(false);
     const [batchDeleting, setBatchDeleting] = useState(false);
-
-    const syncIntervalMap: { [key: number]: string } = {
-        5: '每 5 分钟',
-        10: '每 10 分钟',
-        30: '每 30 分钟',
-        60: '每小时',
-        1440: '每天',
-    };
 
     const columns: ProColumns<InstanceInfo>[] = [
         {
@@ -58,28 +50,25 @@ const InstancePage: React.FC = () => {
             title: '定时同步',
             dataIndex: 'sync_interval',
             hideInSearch: true,
-            render: (text, record) => {
+            render: (_, record) => {
                 const interval = record.sync_interval;
-                const intervalText = (interval > 0 && syncIntervalMap[interval]) ? syncIntervalMap[interval] : '关闭';
+                if (interval === 0) return <Tag>关闭</Tag>;
 
-                if (interval > 0) {
-                    return (
-                        <Tag color="processing" style={{ height: 'auto', padding: '6px 8px', lineHeight: 'normal', border: 'none' }}>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                                <ClockCircleOutlined />
-                                <div>
-                                    <div>{intervalText}</div>
-                                    {record.last_sync_at && (
-                                        <div style={{ fontSize: '12px', color: '#888', marginTop: '2px' }}>
-                                            上次: {formatRelativeTime(record.last_sync_at)}
-                                        </div>
-                                    )}
-                                </div>
+                return (
+                    <Tag color="processing" style={{ height: 'auto', padding: '6px 8px', lineHeight: 'normal', border: 'none' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                            <ClockCircleOutlined />
+                            <div>
+                                <div>{formatFrequency(interval)}</div>
+                                {record.last_sync_at && (
+                                    <div style={{ fontSize: '12px', color: '#888', marginTop: '2px' }}>
+                                        上次: {formatRelativeTime(record.last_sync_at)}
+                                    </div>
+                                )}
                             </div>
-                        </Tag>
-                    );
-                }
-                return <Tag>关闭</Tag>;
+                        </div>
+                    </Tag>
+                );
             },
         },
         {

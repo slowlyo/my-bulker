@@ -2,9 +2,12 @@ import React, { useState, useEffect, useRef } from 'react';
 import { PageContainer, ProTable } from '@ant-design/pro-components';
 import type { ActionType, ProColumns } from '@ant-design/pro-components';
 import { Button, Space, Modal, Form, Input, Select, Switch, message, Tag, Popconfirm, Typography } from 'antd';
-import { PlusOutlined, PlayCircleOutlined, EditOutlined, DeleteOutlined, CheckCircleOutlined, CloseCircleOutlined, RocketOutlined } from '@ant-design/icons';
+import { PlusOutlined, PlayCircleOutlined, EditOutlined, DeleteOutlined, CheckCircleOutlined, CloseCircleOutlined, RocketOutlined, MinusCircleOutlined } from '@ant-design/icons';
 import { request } from '@umijs/max';
 import dayjs from 'dayjs';
+import FrequencyPicker from '@/components/FrequencyPicker';
+
+import { formatFrequency } from '@/utils/format';
 
 const { Text } = Typography;
 
@@ -68,6 +71,7 @@ const DbDoc: React.FC = () => {
     try {
       const payload = {
         ...values,
+        output_path: values.output_paths.filter((p: string) => p && p.trim()).join(','),
         database: values.database_name,
         database_id: 0,
       };
@@ -168,13 +172,19 @@ const DbDoc: React.FC = () => {
       render: (dom: React.ReactNode, record: DbDocTask) => {
         const text = record.output_path;
         if (!text) return '-';
+        const paths = text.split(',').filter(p => p.trim());
         return (
-          <Typography.Text 
-            style={{ maxWidth: 200 }} 
-            ellipsis={{ tooltip: text }}
-          >
-            {text}
-          </Typography.Text>
+          <Space direction="vertical" size={0}>
+            {paths.map((p, index) => (
+              <Typography.Text 
+                key={index}
+                style={{ maxWidth: 200 }} 
+                ellipsis={{ tooltip: p }}
+              >
+                {p}
+              </Typography.Text>
+            ))}
+          </Space>
         );
       }
     },
@@ -183,17 +193,7 @@ const DbDoc: React.FC = () => {
       dataIndex: 'sync_interval', 
       key: 'sync_interval',
       hideInSearch: true,
-      render: (dom: any, record: DbDocTask) => {
-        const val = record.sync_interval;
-        const syncIntervalMap: { [key: number]: string } = {
-          5: '5 分钟',
-          10: '10 分钟',
-          30: '30 分钟',
-          60: '每小时',
-          1440: '每天',
-        };
-        return val > 0 ? (syncIntervalMap[val] || `${val} 分钟`) : <Text type="secondary">关闭</Text>;
-      } 
+      render: (_, record) => formatFrequency(record.sync_interval)
     },
     { 
       title: '状态', 
@@ -245,8 +245,10 @@ const DbDoc: React.FC = () => {
         </Button>,
         <Button key="edit" type="link" size="small" icon={<EditOutlined />} onClick={() => {
           setEditingId(record.id);
+          const paths = record.output_path ? record.output_path.split(',') : [''];
           form.setFieldsValue({
             ...record,
+            output_paths: paths,
             database_name: record.database,
           });
           fetchDatabases(record.instance_id);
@@ -352,23 +354,81 @@ const DbDoc: React.FC = () => {
               placeholder="请选择数据库"
             />
           </Form.Item>
-          <Form.Item 
-            name="output_path" 
-            label="生成的目标路径" 
-            rules={[{ required: true }]}
-            tooltip="生成的文档将以 Markdown 格式保存到该路径，例如：./docs/db.md"
+          <Form.List
+            name="output_paths"
+            initialValue={['']}
+            rules={[
+              {
+                validator: async (_, names) => {
+                  if (!names || names.length < 1) {
+                    return Promise.reject(new Error('至少需要一个输出路径'));
+                  }
+                },
+              },
+            ]}
           >
-            <Input placeholder="例如: ./docs/db_docs.md" />
-          </Form.Item>
+            {(fields, { add, remove }, { errors }) => (
+              <>
+                <Form.Item
+                  label="生成的目标路径"
+                  required
+                  tooltip="生成的文档将以 Markdown 格式保存到该路径，例如：./docs/db.md"
+                  style={{ marginBottom: 0 }}
+                >
+                  {fields.map((field, index) => (
+                    <Form.Item
+                      required={false}
+                      key={field.key}
+                    >
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                          <Form.Item
+                            {...field}
+                            validateTrigger={['onChange', 'onBlur']}
+                            rules={[
+                              {
+                                required: true,
+                                whitespace: true,
+                                message: "请输入输出路径",
+                              },
+                            ]}
+                            noStyle
+                          >
+                            <Input placeholder="例如: ./docs/db_docs.md" style={{ flex: 1 }} />
+                          </Form.Item>
+                          <div style={{ width: '20px', display: 'flex', justifyContent: 'center' }}>
+                            <MinusCircleOutlined
+                              className="dynamic-delete-button"
+                              style={{ 
+                                color: fields.length > 1 ? '#ff4d4f' : '#d9d9d9', 
+                                cursor: fields.length > 1 ? 'pointer' : 'not-allowed' 
+                              }}
+                              onClick={() => {
+                                if (fields.length > 1) {
+                                  remove(field.name);
+                                }
+                              }}
+                            />
+                          </div>
+                        </div>
+                    </Form.Item>
+                  ))}
+                </Form.Item>
+                <Form.Item>
+                  <Button
+                    type="dashed"
+                    onClick={() => add()}
+                    icon={<PlusOutlined />}
+                    style={{ width: '100%' }}
+                  >
+                    添加输出路径
+                  </Button>
+                  <Form.ErrorList errors={errors} />
+                </Form.Item>
+              </>
+            )}
+          </Form.List>
           <Form.Item name="sync_interval" label="同步频率" initialValue={0}>
-            <Select>
-              <Select.Option value={0}>关闭</Select.Option>
-              <Select.Option value={5}>每 5 分钟</Select.Option>
-              <Select.Option value={10}>每 10 分钟</Select.Option>
-              <Select.Option value={30}>每 30 分钟</Select.Option>
-              <Select.Option value={60}>每小时</Select.Option>
-              <Select.Option value={1440}>每天</Select.Option>
-            </Select>
+            <FrequencyPicker />
           </Form.Item>
           <Form.Item name="is_enable" label="启用定时任务" valuePropName="checked">
             <Switch />

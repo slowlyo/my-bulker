@@ -3,6 +3,7 @@ import { MinusCircleOutlined, PlusOutlined } from '@ant-design/icons';
 import { useEffect, useState, useRef } from 'react';
 import { InstanceInfo, InstanceInfoVO } from '@/services/instance/typings';
 import { testConnection } from '@/services/instance/InstanceController';
+import FrequencyPicker from '@/components/FrequencyPicker';
 
 interface InstanceFormProps {
     visible: boolean;
@@ -10,15 +11,6 @@ interface InstanceFormProps {
     onSubmit: (values: InstanceInfoVO) => Promise<boolean | void>;
     editingInstance: InstanceInfo | null;
 }
-
-const syncIntervalOptions = [
-    { label: '关闭', value: 0 },
-    { label: '每 5 分钟', value: 5 },
-    { label: '每 10 分钟', value: 10 },
-    { label: '每 30 分钟', value: 30 },
-    { label: '每小时', value: 60 },
-    { label: '每天', value: 1440 },
-];
 
 const InstanceForm: React.FC<InstanceFormProps> = ({ visible, onClose, onSubmit, editingInstance }) => {
     const [form] = Form.useForm();
@@ -174,7 +166,7 @@ const InstanceForm: React.FC<InstanceFormProps> = ({ visible, onClose, onSubmit,
                     <Input.TextArea rows={3} placeholder="请输入备注" />
                 </Form.Item>
                 <Form.Item name="sync_interval" label="定时同步频率" help="设置实例下所有数据库的自动同步频率" initialValue={0}>
-                    <Select options={syncIntervalOptions} />
+                    <FrequencyPicker />
                 </Form.Item>
             </Form>
         </Drawer>

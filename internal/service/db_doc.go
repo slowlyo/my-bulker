@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 
 	"my-bulker/internal/model"
@@ -273,23 +274,35 @@ func (s *DbDocService) GenerateDoc(task *model.DbDocTask) error {
 	}
 
 	// 6. 写入文件
-	outputPath := task.OutputPath
-	if !filepath.IsAbs(outputPath) {
-		// 如果不是绝对路径，可以根据需求处理，这里假设是相对于当前目录
-		absPath, _ := filepath.Abs(outputPath)
-		outputPath = absPath
+	paths := strings.Split(task.OutputPath, ",")
+	var lastErr error
+	for _, path := range paths {
+		outputPath := strings.TrimSpace(path)
+		if outputPath == "" {
+			continue
+		}
+
+		if !filepath.IsAbs(outputPath) {
+			absPath, _ := filepath.Abs(outputPath)
+			outputPath = absPath
+		}
+
+		// 确保目录存在
+		dir := filepath.Dir(outputPath)
+		if err := os.MkdirAll(dir, 0755); err != nil {
+			lastErr = fmt.Errorf("创建目录失败 (%s): %v", outputPath, err)
+			continue
+		}
+
+		// 写入文件
+		if err := os.WriteFile(outputPath, []byte(mdContent), 0644); err != nil {
+			lastErr = fmt.Errorf("写入文件失败 (%s): %v", outputPath, err)
+			continue
+		}
 	}
 
-	// 确保目录存在
-	dir := filepath.Dir(outputPath)
-	if err := os.MkdirAll(dir, 0755); err != nil {
-		return fmt.Errorf("创建目录失败: %v", err)
-	}
-
-	// 写入文件
-	err = os.WriteFile(outputPath, []byte(mdContent), 0644)
-	if err != nil {
-		return fmt.Errorf("写入文件失败: %v", err)
+	if lastErr != nil {
+		return lastErr
 	}
 
 	return nil
