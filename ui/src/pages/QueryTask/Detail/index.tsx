@@ -7,10 +7,8 @@ import { getQueryTaskDetail, getQueryTaskSQLExecutions, getQueryTaskSQLs, runQue
 import { QueryTaskInfo } from '@/services/queryTask/typings';
 import { formatDateTime } from '@/utils/format';
 import ExecutionStats from './components/ExecutionStats';
-import TargetDatabases from './components/TargetDatabases';
 import TaskSQLs from './components/TaskSQLs';
 import QueryTaskBaseInfo from './components/QueryTaskBaseInfo';
-import QueryProgressPanel from './components/QueryProgressPanel';
 import QueryResultsPanel from './components/QueryResultsPanel';
 
 const QueryTaskDetailPage: React.FC = () => {
@@ -22,10 +20,9 @@ const QueryTaskDetailPage: React.FC = () => {
     const [activeTab, setActiveTab] = useState(() => {
         const searchParams = new URLSearchParams(location.search);
         const tab = searchParams.get('tab');
-        return tab && ['detail', 'progress', 'results'].includes(tab) ? tab : 'detail';
+        return tab && ['detail', 'results'].includes(tab) ? tab : 'detail';
     });
     const [sqlExecutions, setSqlExecutions] = useState<any[]>([]);
-    const [loadingExecutions, setLoadingExecutions] = useState(false);
     const [resultData, setResultData] = useState<any[]>([]);
     const [resultLoading, setResultLoading] = useState(false);
     const [activeSQL, setActiveSQL] = useState<any>(null); // 当前选中的SQL
@@ -40,7 +37,7 @@ const QueryTaskDetailPage: React.FC = () => {
         setActiveTab(() => {
             const searchParams = new URLSearchParams(location.search);
             const tab = searchParams.get('tab');
-            return tab && ['detail', 'progress', 'results'].includes(tab) ? tab : 'detail';
+            return tab && ['detail', 'results'].includes(tab) ? tab : 'detail';
         });
     }, [location.search]);
 
@@ -116,16 +113,7 @@ const QueryTaskDetailPage: React.FC = () => {
         prevStatusRef.current = task?.status;
     }, [task?.status]);
 
-    useEffect(() => {
-        if (activeTab === 'progress' && id) {
-            setLoadingExecutions(true);
-            getQueryTaskSQLExecutions(parseInt(id!)).then(res => {
-                if (res.code === 200) {
-                    setSqlExecutions(res.data || []);
-                }
-            }).finally(() => setLoadingExecutions(false));
-        }
-    }, [activeTab, id]);
+
 
     useEffect(() => {
         if (sqlExecutions.length > 0 && !activeSQL) {
@@ -194,35 +182,18 @@ const QueryTaskDetailPage: React.FC = () => {
     const tabItems = [
         {
             key: 'detail',
-            label: '任务详情',
+            label: '任务概览',
             children: (
                 <Space direction="vertical" style={{ width: '100%' }} size={16}>
-                    <Row gutter={16}>
-                        <Col span={8}>
-                            <QueryTaskBaseInfo task={task} status={status} />
-                        </Col>
-                        <Col span={16}>
-                            <TargetDatabases databases={task.databases} />
-                        </Col>
-                    </Row>
-                    <TaskSQLs sqls={sqlList} />
-                </Space>
-            ),
-        },
-        {
-            key: 'progress',
-            label: '查询进度',
-            children: (
-                <>
+                    <QueryTaskBaseInfo task={task} status={status} />
                     {stats && <ExecutionStats stats={stats} />}
-                    <QueryProgressPanel
-                        task={task}
+                    <TaskSQLs 
+                        sqls={sqlList} 
                         sqlExecutions={sqlExecutions}
-                        loadingExecutions={loadingExecutions}
+                        loading={loading}
                         statusColor={statusColor}
-                        statusText={statusText}
                     />
-                </>
+                </Space>
             ),
         },
         {
@@ -266,7 +237,7 @@ const QueryTaskDetailPage: React.FC = () => {
                                 const res = await runQueryTask(parseInt(id!));
                                 if (res.code === 200) {
                                     message.success(res.message || '任务已开始执行');
-                                    setActiveTab('progress');
+                                    setActiveTab('detail');
                                     await loadAllData(false);
                                 } else {
                                     message.error(res.message || '任务启动失败');

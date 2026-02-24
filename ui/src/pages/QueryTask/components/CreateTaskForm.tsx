@@ -222,18 +222,19 @@ const CreateTaskForm: React.FC<CreateTaskFormProps> = ({
                 form={form}
                 layout="vertical"
             >
-                <Row gutter={[16, 16]} align="top">
-                    <Col xs={24} xl={10}>
-                        <Space direction="vertical" size={16} style={{ display: 'flex' }}>
-                            <Card
-                                size="small"
-                                title="任务配置"
-                                styles={{ body: { padding: 16 } }}
-                            >
+                <Space direction="vertical" size={24} style={{ display: 'flex', width: '100%' }}>
+                    {/* 顶部部分：基础配置，横向铺开 */}
+                    <Card
+                        title="基础任务配置"
+                        bordered={false}
+                        styles={{ header: { fontWeight: 'bold' }, body: { paddingBottom: 0 } }}
+                    >
+                        <Row gutter={24}>
+                            <Col xs={24} md={8}>
                                 <Form.Item label="查询模板">
                                     <Space.Compact style={{ width: '100%' }}>
                                         <Select
-                                            placeholder="从模板加载或选择模板进行管理"
+                                            placeholder="从模板加载"
                                             value={selectedTemplate}
                                             onChange={(value) => handleTemplateSelect(value)}
                                             allowClear
@@ -243,9 +244,7 @@ const CreateTaskForm: React.FC<CreateTaskFormProps> = ({
                                             }
                                             options={templates.map(t => ({ value: t.name, label: t.name }))}
                                         />
-                                        <Button onClick={handleShowSaveModal}>
-                                            存为模板
-                                        </Button>
+                                        <Button onClick={handleShowSaveModal}>保存</Button>
                                         <Button
                                             icon={<DeleteOutlined />}
                                             danger
@@ -254,81 +253,80 @@ const CreateTaskForm: React.FC<CreateTaskFormProps> = ({
                                         />
                                     </Space.Compact>
                                 </Form.Item>
-
+                            </Col>
+                            <Col xs={24} md={8}>
                                 <Form.Item
                                     name="task_name"
                                     label="任务名称"
                                     rules={[
                                         { required: true, message: '请输入任务名称' },
-                                        { max: 100, message: '任务名称不能超过100个字符' },
+                                        { max: 100, message: '不能超过100个字符' },
                                     ]}
                                 >
                                     <Input placeholder="请输入任务名称" allowClear />
                                 </Form.Item>
-
+                            </Col>
+                            <Col xs={24} md={8}>
                                 <Form.Item
                                     name="description"
                                     label="任务描述"
                                     rules={[
-                                        { max: 500, message: '任务描述不能超过500个字符' },
+                                        { max: 500, message: '不能超过500个字符' },
                                     ]}
-                                    style={{ marginBottom: 0 }}
                                 >
-                                    <Input placeholder="请输入任务描述（可选）" allowClear maxLength={500} />
+                                    <Input placeholder="请输入描述（可选）" allowClear maxLength={500} />
                                 </Form.Item>
-                            </Card>
+                            </Col>
+                        </Row>
+                    </Card>
 
+                    <Row gutter={24} align="stretch">
+                        {/* 左边：展示范围选择 */}
+                        <Col xs={24} xl={10}>
                             <Card
-                                size="small"
-                                title="执行范围"
-                                styles={{ body: { padding: 16 } }}
+                                title="设置执行范围"
+                                bordered={false}
+                                styles={{ header: { fontWeight: 'bold' }, body: { height: '100%' } }}
+                                style={{ height: '100%' }}
                             >
-                                <Row gutter={12}>
-                                    <Col xs={24} md={16}>
-                                        <Form.Item
-                                            name="instance_ids"
-                                            label="选择实例"
-                                            rules={[{ required: true, message: '请选择实例' }]}
-                                        >
-                                            <Select
-                                                mode="multiple"
-                                                placeholder="请选择实例"
-                                                onChange={handleInstanceChange}
-                                                showSearch
-                                                allowClear
-                                                filterOption={(input, option) => {
-                                                    // 没有候选项时直接返回，避免读取空节点。
-                                                    if (!option?.children) {
-                                                        return false;
-                                                    }
-                                                    return String(option.children).toLowerCase().includes(input.toLowerCase());
-                                                }}
-                                            >
-                                                {instances.map(instance => (
-                                                    <Option key={instance.value} value={instance.value}>
-                                                        {instance.label}
-                                                    </Option>
-                                                ))}
-                                            </Select>
-                                        </Form.Item>
-                                    </Col>
-                                    <Col xs={24} md={8}>
-                                        <Form.Item
-                                            name="database_mode"
-                                            label="模式"
-                                            rules={[{ required: true, message: '请选择数据库选择模式' }]}
-                                        >
-                                            <Radio.Group
-                                                optionType="button"
-                                                buttonStyle="solid"
-                                                onChange={(e) => handleDatabaseModeChange(e.target.value)}
-                                            >
-                                                <Radio value="include">包含</Radio>
-                                                <Radio value="exclude">排除</Radio>
-                                            </Radio.Group>
-                                        </Form.Item>
-                                    </Col>
-                                </Row>
+                                <Form.Item
+                                    name="instance_ids"
+                                    label="选择实例"
+                                    rules={[{ required: true, message: '请选择实例' }]}
+                                >
+                                    <Select
+                                        mode="multiple"
+                                        placeholder="请选择实例"
+                                        onChange={handleInstanceChange}
+                                        showSearch
+                                        allowClear
+                                        filterOption={(input, option) => {
+                                            if (!option?.children) return false;
+                                            return String(option.children).toLowerCase().includes(input.toLowerCase());
+                                        }}
+                                    >
+                                        {instances.map(instance => (
+                                            <Option key={instance.value} value={instance.value}>
+                                                {instance.label}
+                                            </Option>
+                                        ))}
+                                    </Select>
+                                </Form.Item>
+
+                                <Form.Item
+                                    name="database_mode"
+                                    label="匹配模式"
+                                    rules={[{ required: true, message: '请选择模式' }]}
+                                >
+                                    <Radio.Group
+                                        optionType="button"
+                                        buttonStyle="solid"
+                                        onChange={(e) => handleDatabaseModeChange(e.target.value)}
+                                    >
+                                        <Radio value="include">包含</Radio>
+                                        <Radio value="exclude">排除</Radio>
+                                    </Radio.Group>
+                                </Form.Item>
 
                                 <Alert
                                     message={modeDesc.message}
@@ -349,45 +347,47 @@ const CreateTaskForm: React.FC<CreateTaskFormProps> = ({
                                     />
                                 </Form.Item>
                             </Card>
+                        </Col>
 
-                        </Space>
-                    </Col>
-
-                    <Col xs={24} xl={14}>
-                        <Space direction="vertical" size={16} style={{ display: 'flex' }}>
-                            <Card
-                                size="small"
-                                title="SQL 查询编辑区"
-                                styles={{ body: { padding: 16 } }}
-                            >
-                                <Form.Item
-                                    name="sql_content"
-                                    label="SQL内容"
-                                    rules={[
-                                        { required: true, message: '请输入SQL语句' },
-                                        { min: 1, message: 'SQL语句不能为空' },
-                                    ]}
-                                    style={{ marginBottom: 0 }}
+                        {/* 右边：SQL输入区及操作按钮 */}
+                        <Col xs={24} xl={14}>
+                            <Space direction="vertical" size={24} style={{ display: 'flex', width: '100%', height: '100%' }}>
+                                <Card
+                                    title="SQL 查询"
+                                    bordered={false}
+                                    styles={{ header: { fontWeight: 'bold' } }}
                                 >
-                                    <SQLEditor height={380} />
-                                </Form.Item>
-                            </Card>
+                                    <Form.Item
+                                        name="sql_content"
+                                        rules={[
+                                            { required: true, message: '请输入SQL语句' },
+                                            { min: 1, message: 'SQL语句不能为空' },
+                                        ]}
+                                        style={{ marginBottom: 0 }}
+                                    >
+                                        <SQLEditor height={320} />
+                                    </Form.Item>
+                                </Card>
 
-                            <Card size="small" styles={{ body: { padding: 16 } }}>
-                                <Space direction="vertical" size={12} style={{ display: 'flex' }}>
-                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+                                <Card bordered={false}>
+                                    <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 16 }}>
                                         <Button size="large" onClick={resetFormToDefault}>
-                                            重置配置
+                                            重置所有配置
                                         </Button>
-                                        <Button type="primary" size="large" onClick={handleSubmit} loading={loading}>
+                                        <Button
+                                            type="primary"
+                                            size="large"
+                                            onClick={handleSubmit}
+                                            loading={loading}
+                                        >
                                             创建任务并查看详情
                                         </Button>
                                     </div>
-                                </Space>
-                            </Card>
-                        </Space>
-                    </Col>
-                </Row>
+                                </Card>
+                            </Space>
+                        </Col>
+                    </Row>
+                </Space>
             </Form>
 
             <Modal

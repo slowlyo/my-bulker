@@ -134,7 +134,24 @@ const DatabaseSelector: React.FC<DatabaseSelectorProps> = ({
 
     return (
         <div>
-            <div style={{ marginBottom: '8px' }}>
+            <Select
+                mode="multiple"
+                placeholder="请选择数据库"
+                value={formatValue(value)}
+                onChange={handleChange}
+                style={{ width: '100%' }}
+                options={options}
+                showSearch
+                filterOption={(input, option) => {
+                    if (!option?.label) return false;
+                    return String(option.label).toLowerCase().includes(input.toLowerCase());
+                }}
+                allowClear
+                maxTagCount={17}
+                maxTagTextLength={20}
+            />
+            
+            <div style={{ marginTop: '8px' }}>
                 <Space size="small">
                     <Button 
                         size="small" 
@@ -158,23 +175,6 @@ const DatabaseSelector: React.FC<DatabaseSelectorProps> = ({
                     </span>
                 </Space>
             </div>
-            
-            <Select
-                mode="multiple"
-                placeholder="请选择数据库"
-                value={formatValue(value)}
-                onChange={handleChange}
-                style={{ width: '100%' }}
-                options={options}
-                showSearch
-                filterOption={(input, option) => {
-                    if (!option?.label) return false;
-                    return String(option.label).toLowerCase().includes(input.toLowerCase());
-                }}
-                allowClear
-                maxTagCount={5}
-                maxTagTextLength={20}
-            />
         </div>
     );
 };

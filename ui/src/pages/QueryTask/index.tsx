@@ -1,6 +1,6 @@
 import { PageContainer, ProTable } from '@ant-design/pro-components';
 import type { ActionType, ProColumns } from '@ant-design/pro-components';
-import { Tag, Space, Button, message, Modal, Tooltip, Segmented, Tabs, Input, Select } from 'antd';
+import { Space, Button, message, Modal, Tooltip, Segmented, Tabs, Progress, Typography } from 'antd';
 import { useRef, useState, useEffect } from 'react';
 import { EyeOutlined, DeleteOutlined, StarOutlined, StarFilled } from '@ant-design/icons';
 import { queryQueryTaskList, createQueryTask, batchDeleteQueryTasks, toggleFavoriteStatus } from '@/services/queryTask/QueryTaskController';
@@ -12,12 +12,7 @@ type FavoriteFilter = 'all' | 'favorites';
 type HistoryTabKey = 'quick-query' | 'task-history';
 type StatusFilter = 'all' | 0 | 1 | 2 | 3;
 
-const statusMap = {
-    0: { text: '待执行', color: 'default' },
-    1: { text: '执行中', color: 'processing' },
-    2: { text: '已完成', color: 'success' },
-    3: { text: '失败', color: 'error' },
-};
+
 
 const QueryTaskPage: React.FC = () => {
     const actionRef = useRef<ActionType>();
@@ -26,8 +21,6 @@ const QueryTaskPage: React.FC = () => {
     const [selectedRowKeys, setSelectedRowKeys] = useState<React.Key[]>([]);
     const [favoriteFilter, setFavoriteFilter] = useState<FavoriteFilter>('all');
     const [activeTab, setActiveTab] = useState<HistoryTabKey>('quick-query');
-    const [historyKeyword, setHistoryKeyword] = useState('');
-    const [historyStatus, setHistoryStatus] = useState<StatusFilter>('all');
 
     // 解析 URL 参数，兼容首页跳转的创建动作和收藏筛选动作。
     useEffect(() => {
@@ -121,22 +114,11 @@ const QueryTaskPage: React.FC = () => {
         actionRef.current?.reload();
     };
 
-    // 切换状态筛选并刷新历史列表。
-    const handleHistoryStatusChange = (value: StatusFilter) => {
-        setHistoryStatus(value);
-        actionRef.current?.reload();
-    };
-
-    // 关键词搜索仅在确认后触发，避免输入中频繁请求。
-    const handleHistorySearch = (value: string) => {
-        setHistoryKeyword(value.trim());
-        actionRef.current?.reload();
-    };
-
     const columns: ProColumns<QueryTaskInfo>[] = [
         {
             dataIndex: 'is_favorite',
             width: 48,
+            search: false,
             render: (_, record) => (
                 <Tooltip title={record.is_favorite ? '取消收藏' : '收藏'}>
                     <Button
@@ -149,47 +131,62 @@ const QueryTaskPage: React.FC = () => {
             ),
         },
         {
-            title: '任务',
+            title: '任务名称',
             dataIndex: 'task_name',
-            width: 320,
+            width: 280,
             render: (_, record) => (
-                <Space direction="vertical" size={2}>
-                    <strong>{record.task_name}</strong>
-                    {record.description ? (
-                        <span style={{ fontSize: 12, color: '#8c8c8c' }}>{record.description}</span>
-                    ) : (
-                        <span style={{ fontSize: 12, color: '#bfbfbf' }}>无描述</span>
-                    )}
-                </Space>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                    <span style={{ fontWeight: 500, color: '#1f2937', fontSize: '14px' }}>{record.task_name}</span>
+                    <span style={{ fontSize: '12px', color: '#6b7280', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                        {record.description || '暂无任务描述'}
+                    </span>
+                </div>
             ),
         },
         {
             title: '状态',
             dataIndex: 'status',
             width: 100,
-            render: (_, record) => {
-                const status = statusMap[record.status as keyof typeof statusMap];
-                return <Tag color={status.color}>{status.text}</Tag>;
+            valueType: 'select',
+            valueEnum: {
+                0: { text: '待执行', status: 'Default' },
+                1: { text: '执行中', status: 'Processing' },
+                2: { text: '已完成', status: 'Success' },
+                3: { text: '失败', status: 'Error' },
             },
         },
         {
             title: '执行进度',
             dataIndex: 'progress',
-            width: 240,
+            width: 260,
+            search: false,
             render: (_, record) => {
                 const hasFailure = record.failed_dbs > 0 || record.failed_sqls > 0;
+                const dbPercent = record.total_dbs === 0 ? 0 : Math.round((record.completed_dbs / record.total_dbs) * 100);
+                
                 return (
-                    <Space direction="vertical" size={2}>
-                        <span>数据库：{record.completed_dbs}/{record.total_dbs}</span>
-                        <span>SQL：{record.completed_sqls}/{record.total_sqls}</span>
+                    <div style={{ width: '100%', paddingRight: 24, margin: '8px 0' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, marginBottom: 4 }}>
+                            <span style={{ color: '#4b5563' }}>数据库 ({record.completed_dbs}/{record.total_dbs})</span>
+                            <span style={{ color: '#4b5563' }}>SQL ({record.completed_sqls}/{record.total_sqls})</span>
+                        </div>
+                        <Progress 
+                            percent={dbPercent} 
+                            status={hasFailure ? 'exception' : (dbPercent === 100 ? 'success' : 'normal')}
+                            size="small" 
+                            showInfo={false} 
+                            style={{ margin: 0 }}
+                        />
                         {hasFailure ? (
-                            <span style={{ fontSize: 12, color: '#cf1322' }}>
-                                失败库 {record.failed_dbs}，失败SQL {record.failed_sqls}
-                            </span>
+                            <div style={{ fontSize: 12, color: '#ef4444', marginTop: 4 }}>
+                                失败：{record.failed_dbs} 个库异常，{record.failed_sqls} 条SQL失败
+                            </div>
                         ) : (
-                            <span style={{ fontSize: 12, color: '#8c8c8c' }}>暂无失败</span>
+                            <div style={{ fontSize: 12, color: '#10b981', marginTop: 4, visibility: dbPercent === 100 ? 'visible' : 'hidden' }}>
+                                全部执行成功
+                            </div>
                         )}
-                    </Space>
+                    </div>
                 );
             },
         },
@@ -198,11 +195,13 @@ const QueryTaskPage: React.FC = () => {
             dataIndex: 'created_at',
             valueType: 'dateTime',
             sorter: true,
+            search: false,
             width: 170,
         },
         {
             title: '操作',
             valueType: 'option',
+            search: false,
             width: 88,
             fixed: 'right',
             render: (_, record) => [
@@ -244,7 +243,11 @@ const QueryTaskPage: React.FC = () => {
                                 cardBordered
                                 actionRef={actionRef}
                                 rowKey="id"
-                                search={false}
+                                search={{
+                                    labelWidth: 'auto',
+                                    collapsed: false,
+                                    collapseRender: false,
+                                }}
                                 headerTitle={(
                                     <Segmented
                                         options={[
@@ -256,32 +259,6 @@ const QueryTaskPage: React.FC = () => {
                                     />
                                 )}
                                 toolBarRender={() => [
-                                    <Select<StatusFilter>
-                                        key="status-filter"
-                                        style={{ width: 130 }}
-                                        value={historyStatus}
-                                        onChange={handleHistoryStatusChange}
-                                        options={[
-                                            { label: '全部状态', value: 'all' },
-                                            { label: '待执行', value: 0 },
-                                            { label: '执行中', value: 1 },
-                                            { label: '已完成', value: 2 },
-                                            { label: '失败', value: 3 },
-                                        ]}
-                                    />,
-                                    <Input.Search
-                                        key="task-search"
-                                        allowClear
-                                        style={{ width: 240 }}
-                                        placeholder="按任务名称搜索"
-                                        onSearch={handleHistorySearch}
-                                        onChange={(e) => {
-                                            // 清空输入框时立即恢复全量列表。
-                                            if (!e.target.value) {
-                                                handleHistorySearch('');
-                                            }
-                                        }}
-                                    />,
                                     <Button
                                         key="delete"
                                         danger
@@ -293,7 +270,7 @@ const QueryTaskPage: React.FC = () => {
                                     </Button>,
                                 ]}
                                 request={async (params, sort) => {
-                                    const { current, pageSize } = params;
+                                    const { current, pageSize, task_name, status } = params;
 
                                     let sortField = undefined;
                                     let sortOrder = undefined;
@@ -318,14 +295,14 @@ const QueryTaskPage: React.FC = () => {
                                         queryParams.is_favorite = true;
                                     }
 
-                                    // 有关键词才下发名称筛选，避免无效参数。
-                                    if (historyKeyword) {
-                                        queryParams.task_name = historyKeyword;
+                                    // 从 params 获取 ProTable 提供的标准筛选条件
+                                    if (task_name) {
+                                        queryParams.task_name = task_name;
                                     }
 
-                                    // 状态不是“全部”时才下发状态筛选。
-                                    if (historyStatus !== 'all') {
-                                        queryParams.status = historyStatus;
+                                    // 状态非空时才下发
+                                    if (status !== undefined && status !== '') {
+                                        queryParams.status = Number(status);
                                     }
 
                                     const res = await queryQueryTaskList({

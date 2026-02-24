@@ -35,69 +35,58 @@ const TargetDatabases: React.FC<TargetDatabasesProps> = ({ databases }) => {
         );
     }
 
+    // 按实例分组
+    const groupedDatabases = databaseList.reduce((acc, db) => {
+        if (!acc[db.instance_name]) {
+            acc[db.instance_name] = [];
+        }
+        acc[db.instance_name].push(db.database_name);
+        return acc;
+    }, {} as Record<string, string[]>);
+
     return (
-        <Card title="目标数据库" style={{ height: '100%' }}>
-            <div style={{ 
-                display: 'grid', 
-                gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))',
-                gap: '8px',
-                maxHeight: '260px',
-                overflow: 'auto',
-                paddingRight: '4px'
-            }}>
-                {databaseList.map((db, index) => (
-                    <div
-                        key={`${db.instance_id}-${db.database_name}-${index}`}
-                        style={{
-                            border: '1px solid #e8e8e8',
-                            borderRadius: '8px',
-                            padding: '8px',
-                            background: '#fff',
-                            transition: 'all 0.2s ease',
-                            cursor: 'pointer',
-                        }}
-                        onMouseEnter={(e) => {
-                            e.currentTarget.style.borderColor = '#1890ff';
-                            e.currentTarget.style.boxShadow = '0 2px 8px rgba(24, 144, 255, 0.1)';
-                        }}
-                        onMouseLeave={(e) => {
-                            e.currentTarget.style.borderColor = '#e8e8e8';
-                            e.currentTarget.style.boxShadow = 'none';
-                        }}
-                    >
-                        <div style={{ display: 'flex', alignItems: 'center', marginBottom: '6px' }}>
-                            <DatabaseOutlined style={{ color: '#1890ff', marginRight: '6px', fontSize: '15px' }} />
-                            <div style={{ flex: 1 }}>
-                                <div style={{ fontSize: '13px', fontWeight: '500', color: '#262626' }}>
-                                    {db.database_name}
-                                </div>
-                            </div>
-                        </div>
-                        
-                        <div style={{ display: 'flex', alignItems: 'center', marginBottom: '4px' }}>
-                            <ClusterOutlined style={{ color: '#666', marginRight: '4px', fontSize: '11px' }} />
-                            <span style={{ fontSize: '11px', color: '#666' }}>
-                                {db.instance_name}
+        <Card 
+            title={
+                <Space>
+                    <span>目标数据库</span>
+                    <span style={{ fontSize: '12px', color: '#8c8c8c', fontWeight: 'normal' }}>
+                        (共 {Object.keys(groupedDatabases).length} 个实例，{databaseList.length} 个数据库)
+                    </span>
+                </Space>
+            } 
+            size="small"
+            style={{ height: '100%' }}
+            styles={{ body: { padding: '12px', maxHeight: '185px', overflowY: 'auto' } }}
+        >
+            <Space direction="vertical" size={12} style={{ width: '100%' }}>
+                {Object.entries(groupedDatabases).map(([instanceName, dbs]) => (
+                    <div key={instanceName} style={{ display: 'flex', alignItems: 'flex-start' }}>
+                        <div style={{ 
+                            width: '120px', 
+                            flexShrink: 0, 
+                            display: 'flex', 
+                            alignItems: 'center',
+                            color: '#1f2937',
+                            fontWeight: 500,
+                            fontSize: '13px',
+                            paddingTop: '2px'
+                        }}>
+                            <ClusterOutlined style={{ marginRight: '6px', color: '#1890ff' }} />
+                            <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={instanceName}>
+                                {instanceName}
                             </span>
+                        </div>
+                        <div style={{ flex: 1, display: 'flex', flexWrap: 'wrap', gap: '4px' }}>
+                            {dbs.map(dbName => (
+                                <Tag key={dbName} style={{ margin: 0, border: '1px solid #e5e7eb', background: '#f9fafb', color: '#374151' }}>
+                                    <DatabaseOutlined style={{ marginRight: '4px', color: '#9ca3af' }} />
+                                    {dbName}
+                                </Tag>
+                            ))}
                         </div>
                     </div>
                 ))}
-            </div>
-            
-            <div style={{ 
-                marginTop: '16px', 
-                padding: '8px',
-                background: '#f8f9fa', 
-                borderRadius: '8px',
-                fontSize: '11px',
-                color: '#666'
-            }}>
-                <Space>
-                    <span>总计: {databaseList.length} 个数据库</span>
-                    <span>•</span>
-                    <span>涉及 {new Set(databaseList.map(db => db.instance_id)).size} 个实例</span>
-                </Space>
-            </div>
+            </Space>
         </Card>
     );
 };

@@ -115,6 +115,22 @@ const DbDoc: React.FC = () => {
     }
   };
 
+  const handleStatusChange = async (record: DbDocTask, checked: boolean) => {
+    try {
+      const payload = {
+        ...record,
+        output_path: record.output_path,
+        database: record.database,
+        is_enable: checked,
+      };
+      await request(`/api/db-docs/${record.id}`, { method: 'PUT', data: payload });
+      message.success(checked ? '任务已启用' : '任务已禁用');
+      actionRef.current?.reload();
+    } catch (error) {
+      message.error('状态切换失败');
+    }
+  };
+
   const handleBatchRun = async () => {
     if (selectedRowKeys.length === 0) return;
     try {
@@ -205,7 +221,13 @@ const DbDoc: React.FC = () => {
         false: { text: '禁用', status: 'Default' },
       },
       render: (dom: any, record: DbDocTask) => (
-        <Tag color={record.is_enable ? 'green' : 'default'}>{record.is_enable ? '启用' : '禁用'}</Tag>
+        <Switch 
+          checked={record.is_enable} 
+          onChange={(checked) => handleStatusChange(record, checked)}
+          checkedChildren="启用"
+          unCheckedChildren="禁用"
+          size="small"
+        />
       )
     },
     {

@@ -9,25 +9,39 @@ interface QueryTaskBaseInfoProps {
 }
 
 const QueryTaskBaseInfo: React.FC<QueryTaskBaseInfoProps> = ({ task, status }) => (
-    <Card title="基本信息" style={{ height: '100%' }}>
-        <Descriptions column={1} bordered size="small">
-            <Descriptions.Item label="任务名称">
-                <strong>{task.task_name}</strong>
-            </Descriptions.Item>
-            <Descriptions.Item label="任务状态">
-                <Tag color={status.color}>{status.text}</Tag>
-            </Descriptions.Item>
-            <Descriptions.Item label="任务描述">
-                {task.description || '-'}
-            </Descriptions.Item>
-            <Descriptions.Item label="时间进度">
-                <div style={{ fontSize: '12px' }}>
-                    <div>创建: {formatDateTime(task.created_at)}</div>
-                    {task.started_at && <div>开始: {formatDateTime(task.started_at)}</div>}
-                    {task.completed_at && <div>完成: {formatDateTime(task.completed_at)}</div>}
-                </div>
-            </Descriptions.Item>
-        </Descriptions>
+    <Card size="small" styles={{ body: { padding: '16px 20px' } }} style={{ marginBottom: 16 }}>
+        <div style={{ display: 'flex', alignItems: 'center', marginBottom: 16 }}>
+            <div style={{ width: 4, height: 16, background: '#1890ff', borderRadius: 2, marginRight: 8 }} />
+            <span style={{ fontWeight: 600, fontSize: '15px', color: '#1f2937' }}>基本信息</span>
+        </div>
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '20px 48px' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                <span style={{ fontSize: '13px', color: '#6b7280' }}>任务名称</span>
+                <span style={{ fontSize: '14px', fontWeight: 500, color: '#1f2937' }}>{task.task_name}</span>
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                <span style={{ fontSize: '13px', color: '#6b7280' }}>状态</span>
+                <span><Tag color={status.color} style={{ margin: 0, border: 'none', padding: '0 8px' }}>{status.text}</Tag></span>
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                <span style={{ fontSize: '13px', color: '#6b7280' }}>描述</span>
+                <span style={{ fontSize: '14px', color: '#374151', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '300px' }} title={task.description}>
+                    {task.description || '-'}
+                </span>
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                <span style={{ fontSize: '13px', color: '#6b7280' }}>创建时间</span>
+                <span style={{ fontSize: '14px', color: '#374151' }}>{formatDateTime(task.created_at)}</span>
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                <span style={{ fontSize: '13px', color: '#6b7280' }}>开始时间</span>
+                <span style={{ fontSize: '14px', color: '#374151' }}>{task.started_at ? formatDateTime(task.started_at) : '-'}</span>
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                <span style={{ fontSize: '13px', color: '#6b7280' }}>完成时间</span>
+                <span style={{ fontSize: '14px', color: '#374151' }}>{task.completed_at ? formatDateTime(task.completed_at) : '-'}</span>
+            </div>
+        </div>
     </Card>
 );
 

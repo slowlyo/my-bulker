@@ -51,7 +51,7 @@ export default defineConfig({
             icon: "DatabaseOutlined",
         },
         {
-            name: "查询任务",
+            name: "查询",
             path: "/query-task",
             component: "./QueryTask",
             icon: "PlayCircleOutlined",
