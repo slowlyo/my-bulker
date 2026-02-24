@@ -5,17 +5,19 @@ interface SQLEditorProps {
     value?: string;
     onChange?: (value: string) => void;
     placeholder?: string;
+    height?: number | string;
 }
 
 const SQLEditor: React.FC<SQLEditorProps> = ({
     value = '',
     onChange,
     placeholder = '请输入SQL语句，支持多条语句（用分号分隔）',
+    height = 220,
 }) => {
     return (
         <div style={{ border: '1px solid #d9d9d9', borderRadius: 6, overflow: 'hidden' }}>
             <Editor
-                height={220}
+                height={height}
                 language="sql"
                 value={value}
                 onChange={(v: string | undefined) => onChange?.(v ?? '')}
