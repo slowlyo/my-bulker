@@ -1,5 +1,5 @@
 import { request } from '@umijs/max';
-import { InstanceInfo, InstanceInfoVO, Result_InstanceInfo_, Result_PageInfo_InstanceInfo__, Result_string_, APIResponse } from './typings';
+import { InstanceInfo, InstanceInfoVO, Result_InstanceInfo_, Result_InstancePasswordResponse_, Result_PageInfo_InstanceInfo__, Result_string_, APIResponse } from './typings';
 
 /** 获取实例列表 GET /api/instances */
 export async function queryInstanceList(
@@ -49,6 +49,23 @@ export async function getInstanceDetail(
 ) {
   const { instanceId: param0 } = params;
   return request<Result_InstanceInfo_>(`/api/instances/${param0}`, {
+    method: 'GET',
+    params: { ...params },
+    ...(options || {}),
+  });
+}
+
+/** 获取实例密码 GET /api/instances/${param0}/password */
+export async function getInstancePassword(
+  params: {
+    // path
+    /** instanceId */
+    instanceId?: string;
+  },
+  options?: { [key: string]: any },
+) {
+  const { instanceId: param0 } = params;
+  return request<Result_InstancePasswordResponse_>(`/api/instances/${param0}/password`, {
     method: 'GET',
     params: { ...params },
     ...(options || {}),

@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"errors"
 	"fmt"
 	"my-bulker/internal/model"
 	"my-bulker/internal/pkg/response"
@@ -8,6 +9,7 @@ import (
 	"strconv"
 
 	"github.com/gofiber/fiber/v2"
+	"gorm.io/gorm"
 )
 
 // InstanceHandler 实例处理器
@@ -108,6 +110,25 @@ func (h *InstanceHandler) Get(c *fiber.Ctx) error {
 	}
 
 	return response.Custom(c, response.CodeSuccess, "获取实例成功", instance)
+}
+
+// GetPassword 获取实例密码
+func (h *InstanceHandler) GetPassword(c *fiber.Ctx) error {
+	id, err := strconv.ParseUint(c.Params("id"), 10, 32)
+	if err != nil {
+		return response.Invalid(c, "无效的实例ID")
+	}
+
+	password, err := h.service.GetPassword(uint(id))
+	if err != nil {
+		// 实例不存在时返回明确提示，避免前端误判为系统错误。
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return response.NotFound(c, "实例不存在")
+		}
+		return response.Internal(c, "获取实例密码失败")
+	}
+
+	return response.Custom(c, response.CodeSuccess, "获取实例密码成功", password)
 }
 
 // List 获取实例列表

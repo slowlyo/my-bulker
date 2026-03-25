@@ -15,6 +15,12 @@ export interface Result_InstanceInfo_ {
   data: InstanceInfo;
 }
 
+export interface Result_InstancePasswordResponse_ {
+  code: number;
+  message: string;
+  data: InstancePasswordResponse;
+}
+
 export interface Result_string_ {
   code: number;
   message: string;
@@ -47,8 +53,12 @@ export interface InstanceInfoVO {
   sync_interval: number;
 }
 
+export interface InstancePasswordResponse {
+  password: string;
+}
+
 export interface APIResponse<T> {
   code: number;
   message: string;
   data: T;
-} 
+}

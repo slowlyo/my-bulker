@@ -2,36 +2,12 @@ package sql_parse
 
 import (
 	"strings"
-
-	"vitess.io/vitess/go/vt/sqlparser"
 )
 
 // DetectResultHeaders 检测 SQL 执行结果应包含的表头（字段名）
 func DetectResultHeaders(sql string) []string {
-	sql = strings.TrimSpace(sql)
+	sql = trimSQLTerminator(sql)
 	sqlUpper := strings.ToUpper(sql)
-	parser, err := sqlparser.New(sqlparser.Options{})
-	if err == nil {
-		stmt, err := parser.Parse(sql)
-		if err == nil {
-			if sel, ok := stmt.(*sqlparser.Select); ok {
-				headers := make([]string, 0, len(sel.SelectExprs.Exprs))
-				for _, expr := range sel.SelectExprs.Exprs {
-					switch e := expr.(type) {
-					case *sqlparser.AliasedExpr:
-						if !e.As.IsEmpty() {
-							headers = append(headers, e.As.String())
-						} else {
-							headers = append(headers, sqlparser.String(e.Expr))
-						}
-					case *sqlparser.StarExpr:
-						headers = append(headers, "*")
-					}
-				}
-				return headers
-			}
-		}
-	}
 	// 系统性语句
 	if strings.HasPrefix(sqlUpper, "SHOW TABLES") {
 		return []string{"Tables_in_xxx"} // 可根据当前库名动态生成
@@ -84,6 +60,371 @@ func DetectResultHeaders(sql string) []string {
 	if strings.HasPrefix(sqlUpper, "DESC") || strings.HasPrefix(sqlUpper, "DESCRIBE") {
 		return []string{"Field", "Type", "Null", "Key", "Default", "Extra"}
 	}
+	if headers, ok := extractSelectExpressions(sql); ok {
+		return headers
+	}
 	// 其他类型默认返回 result
 	return []string{"result"}
+}
+
+// extractSelectExpressions 提取最外层 SELECT 的字段列表。
+func extractSelectExpressions(sql string) ([]string, bool) {
+	selectList, ok := findOuterSelectList(sql)
+	if !ok {
+		return nil, false
+	}
+
+	items := splitTopLevelComma(selectList)
+	if len(items) == 0 {
+		return nil, false
+	}
+
+	headers := make([]string, 0, len(items))
+	for _, item := range items {
+		header := normalizeSelectHeader(item)
+		if header == "" {
+			return nil, false
+		}
+		headers = append(headers, header)
+	}
+
+	return headers, true
+}
+
+// findOuterSelectList 找出最外层 SELECT 与 FROM 之间的字段片段。
+func findOuterSelectList(sql string) (string, bool) {
+	selectIndex := findTopLevelKeyword(sql, "SELECT", 0)
+	if selectIndex < 0 {
+		return "", false
+	}
+
+	start := skipLeadingSpaces(sql, selectIndex+len("SELECT"))
+	fromIndex := findTopLevelKeyword(sql, "FROM", start)
+	if fromIndex < 0 {
+		return strings.TrimSpace(sql[start:]), strings.TrimSpace(sql[start:]) != ""
+	}
+
+	selectList := strings.TrimSpace(sql[start:fromIndex])
+	return selectList, selectList != ""
+}
+
+// splitTopLevelComma 按最外层逗号拆分字段列表。
+func splitTopLevelComma(sql string) []string {
+	items := make([]string, 0)
+	start := 0
+	depth := 0
+	inSingleQuote := false
+	inDoubleQuote := false
+	inBacktick := false
+
+	for i := 0; i < len(sql); i++ {
+		char := sql[i]
+
+		if !inDoubleQuote && !inBacktick && char == '\'' && !isEscaped(sql, i) {
+			inSingleQuote = !inSingleQuote
+			continue
+		}
+		if !inSingleQuote && !inBacktick && char == '"' && !isEscaped(sql, i) {
+			inDoubleQuote = !inDoubleQuote
+			continue
+		}
+		if !inSingleQuote && !inDoubleQuote && char == '`' {
+			inBacktick = !inBacktick
+			continue
+		}
+		if inSingleQuote || inDoubleQuote || inBacktick {
+			continue
+		}
+
+		switch char {
+		case '(':
+			depth++
+		case ')':
+			if depth > 0 {
+				depth--
+			}
+		case ',':
+			if depth == 0 {
+				items = append(items, strings.TrimSpace(sql[start:i]))
+				start = i + 1
+			}
+		}
+	}
+
+	items = append(items, strings.TrimSpace(sql[start:]))
+	result := make([]string, 0, len(items))
+	for _, item := range items {
+		if item != "" {
+			result = append(result, item)
+		}
+	}
+
+	return result
+}
+
+// normalizeSelectHeader 将字段表达式转换成展示表头。
+func normalizeSelectHeader(expr string) string {
+	expr = strings.TrimSpace(expr)
+	if expr == "" {
+		return ""
+	}
+
+	if alias := extractAlias(expr); alias != "" {
+		return alias
+	}
+
+	if expr == "*" {
+		return expr
+	}
+
+	if isQuotedLiteral(expr) {
+		return unquoteSQLString(expr)
+	}
+
+	if isQuotedIdentifier(expr) {
+		return strings.Trim(expr, "`")
+	}
+
+	return normalizeExpression(expr)
+}
+
+// extractAlias 提取显式别名。
+func extractAlias(expr string) string {
+	asIndex := findTopLevelKeyword(expr, "AS", 0)
+	if asIndex < 0 {
+		return ""
+	}
+
+	alias := strings.TrimSpace(expr[asIndex+len("AS"):])
+	if alias == "" {
+		return ""
+	}
+	return alias
+}
+
+// normalizeExpression 规范化表达式展示文本。
+func normalizeExpression(expr string) string {
+	expr = normalizeOperatorSpacing(expr)
+	expr = normalizeFunctionName(expr)
+	return expr
+}
+
+// normalizeFunctionName 统一函数名大小写，避免展示风格不一致。
+func normalizeFunctionName(expr string) string {
+	openParen := strings.IndexByte(expr, '(')
+	if openParen <= 0 || !strings.HasSuffix(expr, ")") {
+		return expr
+	}
+
+	name := strings.TrimSpace(expr[:openParen])
+	if name == "" || strings.ContainsAny(name, " .+-*/%<>=!") {
+		return expr
+	}
+
+	return strings.ToLower(name) + expr[openParen:]
+}
+
+// normalizeOperatorSpacing 为常见运算符补齐空格，提升可读性。
+func normalizeOperatorSpacing(expr string) string {
+	var builder strings.Builder
+	inSingleQuote := false
+	inDoubleQuote := false
+	inBacktick := false
+
+	for i := 0; i < len(expr); i++ {
+		char := expr[i]
+
+		if !inDoubleQuote && !inBacktick && char == '\'' && !isEscaped(expr, i) {
+			inSingleQuote = !inSingleQuote
+			builder.WriteByte(char)
+			continue
+		}
+		if !inSingleQuote && !inBacktick && char == '"' && !isEscaped(expr, i) {
+			inDoubleQuote = !inDoubleQuote
+			builder.WriteByte(char)
+			continue
+		}
+		if !inSingleQuote && !inDoubleQuote && char == '`' {
+			inBacktick = !inBacktick
+			builder.WriteByte(char)
+			continue
+		}
+		if inSingleQuote || inDoubleQuote || inBacktick {
+			builder.WriteByte(char)
+			continue
+		}
+
+		if strings.ContainsRune("+-*/%", rune(char)) {
+			writeSpacedOperator(&builder, char)
+			continue
+		}
+		builder.WriteByte(char)
+	}
+
+	return strings.Join(strings.Fields(builder.String()), " ")
+}
+
+// writeSpacedOperator 按需写入两侧空格，避免连续运算符被粘连。
+func writeSpacedOperator(builder *strings.Builder, operator byte) {
+	current := builder.String()
+	if len(current) > 0 && current[len(current)-1] != ' ' {
+		builder.WriteByte(' ')
+	}
+	builder.WriteByte(operator)
+	builder.WriteByte(' ')
+}
+
+// findTopLevelKeyword 在最外层结构中查找关键字位置。
+func findTopLevelKeyword(sql string, keyword string, start int) int {
+	depth := 0
+	inSingleQuote := false
+	inDoubleQuote := false
+	inBacktick := false
+	inLineComment := false
+	inBlockCommentDepth := 0
+	upperKeyword := strings.ToUpper(keyword)
+
+	for i := start; i < len(sql); i++ {
+		char := sql[i]
+
+		if inLineComment {
+			if char == '\n' || char == '\r' {
+				inLineComment = false
+			}
+			continue
+		}
+		if inBlockCommentDepth > 0 {
+			if char == '/' && i+1 < len(sql) && sql[i+1] == '*' {
+				inBlockCommentDepth++
+				i++
+				continue
+			}
+			if char == '*' && i+1 < len(sql) && sql[i+1] == '/' {
+				inBlockCommentDepth--
+				i++
+			}
+			continue
+		}
+
+		if !inSingleQuote && !inDoubleQuote && !inBacktick {
+			if char == '-' && i+1 < len(sql) && sql[i+1] == '-' {
+				inLineComment = true
+				i++
+				continue
+			}
+			if char == '/' && i+1 < len(sql) && sql[i+1] == '*' {
+				inBlockCommentDepth = 1
+				i++
+				continue
+			}
+		}
+
+		if !inDoubleQuote && !inBacktick && char == '\'' && !isEscaped(sql, i) {
+			inSingleQuote = !inSingleQuote
+			continue
+		}
+		if !inSingleQuote && !inBacktick && char == '"' && !isEscaped(sql, i) {
+			inDoubleQuote = !inDoubleQuote
+			continue
+		}
+		if !inSingleQuote && !inDoubleQuote && char == '`' {
+			inBacktick = !inBacktick
+			continue
+		}
+		if inSingleQuote || inDoubleQuote || inBacktick {
+			continue
+		}
+
+		switch char {
+		case '(':
+			depth++
+			continue
+		case ')':
+			if depth > 0 {
+				depth--
+			}
+			continue
+		}
+		if depth != 0 {
+			continue
+		}
+
+		if matchesKeywordAt(sql, upperKeyword, i) {
+			return i
+		}
+	}
+
+	return -1
+}
+
+// hasTopLevelKeyword 判断最外层是否包含指定关键字。
+func hasTopLevelKeyword(sql string, keyword string) bool {
+	return findTopLevelKeyword(sql, keyword, 0) >= 0
+}
+
+// matchesKeywordAt 判断指定位置是否完整匹配关键字。
+func matchesKeywordAt(sql string, keyword string, index int) bool {
+	if index < 0 || index+len(keyword) > len(sql) {
+		return false
+	}
+	if !strings.EqualFold(sql[index:index+len(keyword)], keyword) {
+		return false
+	}
+	if index > 0 && isIdentifierChar(sql[index-1]) {
+		return false
+	}
+	if index+len(keyword) < len(sql) && isIdentifierChar(sql[index+len(keyword)]) {
+		return false
+	}
+	return true
+}
+
+// skipLeadingSpaces 跳过起始空白字符。
+func skipLeadingSpaces(sql string, start int) int {
+	for start < len(sql) && isSQLSpace(sql[start]) {
+		start++
+	}
+	return start
+}
+
+// isSQLSpace 判断字符是否为空白。
+func isSQLSpace(char byte) bool {
+	return char == ' ' || char == '\t' || char == '\n' || char == '\r'
+}
+
+// isIdentifierChar 判断字符是否可作为标识符的一部分。
+func isIdentifierChar(char byte) bool {
+	return char == '_' || char == '$' ||
+		(char >= 'a' && char <= 'z') ||
+		(char >= 'A' && char <= 'Z') ||
+		(char >= '0' && char <= '9')
+}
+
+// isEscaped 判断当前位置字符是否被反斜杠转义。
+func isEscaped(sql string, index int) bool {
+	backslashCount := 0
+	for i := index - 1; i >= 0 && sql[i] == '\\'; i-- {
+		backslashCount++
+	}
+	return backslashCount%2 == 1
+}
+
+// isQuotedLiteral 判断表达式是否为字符串字面量。
+func isQuotedLiteral(expr string) bool {
+	return len(expr) >= 2 &&
+		((expr[0] == '\'' && expr[len(expr)-1] == '\'') ||
+			(expr[0] == '"' && expr[len(expr)-1] == '"'))
+}
+
+// isQuotedIdentifier 判断表达式是否为反引号包裹的标识符。
+func isQuotedIdentifier(expr string) bool {
+	return len(expr) >= 2 && expr[0] == '`' && expr[len(expr)-1] == '`'
+}
+
+// unquoteSQLString 去掉 SQL 字符串外层引号。
+func unquoteSQLString(expr string) string {
+	if len(expr) < 2 {
+		return expr
+	}
+	return expr[1 : len(expr)-1]
 }

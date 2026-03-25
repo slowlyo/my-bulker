@@ -33,19 +33,20 @@ func SplitSQLStatements(sqlContent string) ([]string, error) {
 func removeComments(sql string) string {
 	var out strings.Builder
 	inSingle, inDouble := false, false
-	inLineComment, inBlockComment := false, false
+	inLineComment := false
+	blockCommentDepth := 0
 	length := len(sql)
 	for i := 0; i < length; i++ {
 		c := sql[i]
 		// 进入单行注释
-		if !inSingle && !inDouble && !inBlockComment && c == '-' && i+1 < length && sql[i+1] == '-' {
+		if !inSingle && !inDouble && blockCommentDepth == 0 && c == '-' && i+1 < length && sql[i+1] == '-' {
 			inLineComment = true
 			i++ // 跳过下一个'-'
 			continue
 		}
 		// 进入多行注释
 		if !inSingle && !inDouble && !inLineComment && c == '/' && i+1 < length && sql[i+1] == '*' {
-			inBlockComment = true
+			blockCommentDepth++
 			i++ // 跳过下一个'*'
 			continue
 		}
@@ -56,12 +57,17 @@ func removeComments(sql string) string {
 			continue
 		}
 		// 退出多行注释
-		if inBlockComment && c == '*' && i+1 < length && sql[i+1] == '/' {
-			inBlockComment = false
+		if blockCommentDepth > 0 && c == '/' && i+1 < length && sql[i+1] == '*' {
+			blockCommentDepth++
+			i++ // 跳过下一个'*'
+			continue
+		}
+		if blockCommentDepth > 0 && c == '*' && i+1 < length && sql[i+1] == '/' {
+			blockCommentDepth--
 			i++ // 跳过下一个'/'
 			continue
 		}
-		if inLineComment || inBlockComment {
+		if inLineComment || blockCommentDepth > 0 {
 			continue // 注释内容直接跳过
 		}
 		// 字符串状态切换

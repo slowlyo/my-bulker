@@ -35,6 +35,7 @@ func Register(app *fiber.App) {
 			instances.Post("/export", instanceHandler.ExportInstances)         // 导出实例配置
 			instances.Post("/import", instanceHandler.ImportInstances)         // 导入实例配置
 			instances.Get("/options", instanceHandler.Options)                 // 获取实例选项
+			instances.Get("/:id/password", instanceHandler.GetPassword)        // 获取实例密码
 			instances.Post("/test-connection", instanceHandler.TestConnection) // 测试连接
 			instances.Post("/sync-databases", instanceHandler.SyncDatabases)   // 同步数据库
 			instances.Delete("/batch", instanceHandler.BatchDelete)            // 批量删除实例

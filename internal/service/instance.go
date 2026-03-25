@@ -195,6 +195,18 @@ func (s *InstanceService) Get(id uint) (*model.InstanceResponse, error) {
 	}, nil
 }
 
+// GetPassword 获取实例密码
+func (s *InstanceService) GetPassword(id uint) (*model.InstancePasswordResponse, error) {
+	instance := &model.Instance{}
+	if err := database.GetDB().Select("password").First(instance, id).Error; err != nil {
+		return nil, err
+	}
+
+	return &model.InstancePasswordResponse{
+		Password: instance.Password,
+	}, nil
+}
+
 // List 获取实例列表
 func (s *InstanceService) List(req *model.InstanceListRequest) (*model.InstanceListResponse, error) {
 	var total int64

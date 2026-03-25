@@ -54,7 +54,7 @@ func TestDetectResultHeaders(t *testing.T) {
 		{
 			name:    "select with join",
 			input:   "SELECT a.id, b.name FROM a JOIN b ON a.bid = b.id;",
-			expects: []string{"a.id", "b.`name`"},
+			expects: []string{"a.id", "b.name"},
 		},
 		{
 			name:    "select with group by",

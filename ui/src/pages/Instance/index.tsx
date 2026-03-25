@@ -1,11 +1,11 @@
 import { PageContainer, ProTable } from '@ant-design/pro-components';
 import type { ActionType, ProColumns } from '@ant-design/pro-components';
-import { Button, Popconfirm, message, Space, Tag, Spin, Upload, Modal } from 'antd';
+import { Button, Popconfirm, message, Space, Tag, Spin, Upload, Modal, Tooltip } from 'antd';
 import { useRef, useState } from 'react';
-import { addInstance, deleteInstance, batchDeleteInstances, modifyInstance, queryInstanceList, syncDatabases } from '@/services/instance/InstanceController';
+import { addInstance, deleteInstance, batchDeleteInstances, getInstancePassword, modifyInstance, queryInstanceList, syncDatabases } from '@/services/instance/InstanceController';
 import InstanceForm from './components/InstanceForm';
 import { InstanceInfo, APIResponse } from '@/services/instance/typings';
-import { EditOutlined, DeleteOutlined, PlusOutlined, SyncOutlined, LoadingOutlined, UploadOutlined, DownloadOutlined, ClockCircleOutlined } from '@ant-design/icons';
+import { EditOutlined, DeleteOutlined, PlusOutlined, SyncOutlined, LoadingOutlined, UploadOutlined, DownloadOutlined, ClockCircleOutlined, CopyOutlined, KeyOutlined } from '@ant-design/icons';
 import { request } from '@umijs/max';
 import { formatRelativeTime, formatFrequency } from '@/utils/format';
 
@@ -18,6 +18,48 @@ const InstancePage: React.FC = () => {
     const [exporting, setExporting] = useState(false);
     const [importing, setImporting] = useState(false);
     const [batchDeleting, setBatchDeleting] = useState(false);
+    const [copyingUsernameId, setCopyingUsernameId] = useState<number | null>(null);
+    const [copyingPasswordId, setCopyingPasswordId] = useState<number | null>(null);
+
+    // 显式提供用户名复制按钮，避免自定义渲染后内置复制能力失效。
+    const handleCopyUsername = async (record: InstanceInfo) => {
+        setCopyingUsernameId(record.id);
+        try {
+            await navigator.clipboard.writeText(record.username);
+            message.success(`已复制 ${record.name} 的用户名`);
+        } catch (error: any) {
+            message.error(error.message || '复制用户名失败');
+        } finally {
+            setCopyingUsernameId(null);
+        }
+    };
+
+    // 仅在用户点击时请求密码，避免列表接口返回敏感字段。
+    const handleCopyPassword = async (record: InstanceInfo) => {
+        setCopyingPasswordId(record.id);
+        try {
+            const res = await getInstancePassword({ instanceId: String(record.id) });
+
+            // 接口返回失败时直接中断，避免复制无效内容。
+            if (res.code !== 200) {
+                message.error(res.message || '获取密码失败');
+                return;
+            }
+
+            // 密码为空时给出提示，避免用户误以为复制成功。
+            if (!res.data?.password) {
+                message.warning('该实例未配置密码');
+                return;
+            }
+
+            await navigator.clipboard.writeText(res.data.password);
+            message.success(`已复制 ${record.name} 的密码`);
+        } catch (error: any) {
+            message.error(error.message || '复制密码失败');
+        } finally {
+            setCopyingPasswordId(null);
+        }
+    };
 
     const columns: ProColumns<InstanceInfo>[] = [
         {
@@ -30,8 +72,30 @@ const InstancePage: React.FC = () => {
         {
             title: '用户名',
             dataIndex: 'username',
-            copyable: true,
             ellipsis: true,
+            render: (_, record) => (
+                <Space size={4}>
+                    <span>{record.username}</span>
+                    <Tooltip title="复制用户名">
+                        <Button
+                            type="link"
+                            size="small"
+                            icon={<CopyOutlined />}
+                            loading={copyingUsernameId === record.id}
+                            onClick={() => handleCopyUsername(record)}
+                        />
+                    </Tooltip>
+                    <Tooltip title="复制密码">
+                        <Button
+                            type="link"
+                            size="small"
+                            icon={<KeyOutlined />}
+                            loading={copyingPasswordId === record.id}
+                            onClick={() => handleCopyPassword(record)}
+                        />
+                    </Tooltip>
+                </Space>
+            ),
         },
         {
             title: '主机地址',

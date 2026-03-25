@@ -40,6 +40,11 @@ type InstanceResponse struct {
 	LastSyncAt   *string        `json:"last_sync_at"`  // 上次同步时间
 }
 
+// InstancePasswordResponse 实例密码响应
+type InstancePasswordResponse struct {
+	Password string `json:"password"` // 实例密码
+}
+
 // InstanceListRequest 实例列表请求
 type InstanceListRequest struct {
 	Pagination `query:""` // 嵌入分页参数

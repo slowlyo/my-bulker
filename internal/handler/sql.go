@@ -3,10 +3,8 @@ package handler
 import (
 	"my-bulker/internal/pkg/response"
 	"my-bulker/internal/pkg/sql_parse"
-	"strings"
 
 	"github.com/gofiber/fiber/v2"
-	"vitess.io/vitess/go/vt/sqlparser"
 )
 
 // SQLHandler SQL相关接口
@@ -31,13 +29,8 @@ func (h *SQLHandler) Validate(c *fiber.Ctx) error {
 			"error": err.Error(),
 		})
 	}
-	parser, _ := sqlparser.New(sqlparser.Options{})
 	for _, stmt := range stmts {
-		if strings.TrimSpace(stmt) == "" {
-			continue
-		}
-		_, err := parser.Parse(stmt)
-		if err != nil {
+		if err := sql_parse.ValidateStatement(stmt); err != nil {
 			return response.Success(c, fiber.Map{
 				"valid": false,
 				"error": err.Error(),
