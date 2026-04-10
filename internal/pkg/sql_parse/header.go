@@ -1,6 +1,7 @@
 package sql_parse
 
 import (
+	"fmt"
 	"strings"
 )
 
@@ -8,63 +9,137 @@ import (
 func DetectResultHeaders(sql string) []string {
 	sql = trimSQLTerminator(sql)
 	sqlUpper := strings.ToUpper(sql)
+	statementKeyword := detectResultStatementKeyword(sql)
 	// 系统性语句
-	if strings.HasPrefix(sqlUpper, "SHOW TABLES") {
+	if statementKeyword == "SHOW" && strings.HasPrefix(sqlUpper, "SHOW TABLES") {
 		return []string{"Tables_in_xxx"} // 可根据当前库名动态生成
 	}
-	if strings.HasPrefix(sqlUpper, "SHOW DATABASES") {
+	if statementKeyword == "SHOW" && strings.HasPrefix(sqlUpper, "SHOW DATABASES") {
 		return []string{"Database"}
 	}
-	if strings.HasPrefix(sqlUpper, "SHOW INDEX") {
+	if statementKeyword == "SHOW" && strings.HasPrefix(sqlUpper, "SHOW INDEX") {
 		return []string{"Table", "Non_unique", "Key_name", "Seq_in_index", "Column_name", "Collation", "Cardinality", "Sub_part", "Packed", "Null", "Index_type", "Comment", "Index_comment", "Visible", "Expression"}
 	}
-	if strings.HasPrefix(sqlUpper, "SHOW PROCESSLIST") {
+	if statementKeyword == "SHOW" && strings.HasPrefix(sqlUpper, "SHOW PROCESSLIST") {
 		return []string{"Id", "User", "Host", "db", "Command", "Time", "State", "Info"}
 	}
-	if strings.HasPrefix(sqlUpper, "SHOW VARIABLES") || strings.HasPrefix(sqlUpper, "SHOW STATUS") {
+	if statementKeyword == "SHOW" && (strings.HasPrefix(sqlUpper, "SHOW VARIABLES") || strings.HasPrefix(sqlUpper, "SHOW STATUS")) {
 		return []string{"Variable_name", "Value"}
 	}
-	if strings.HasPrefix(sqlUpper, "SHOW ENGINES") {
+	if statementKeyword == "SHOW" && strings.HasPrefix(sqlUpper, "SHOW ENGINES") {
 		return []string{"Engine", "Support", "Comment", "Transactions", "XA", "Savepoints"}
 	}
-	if strings.HasPrefix(sqlUpper, "SHOW CREATE TABLE") {
+	if statementKeyword == "SHOW" && strings.HasPrefix(sqlUpper, "SHOW CREATE TABLE") {
 		return []string{"Table", "Create Table"}
 	}
-	if strings.HasPrefix(sqlUpper, "SHOW GRANTS") {
+	if statementKeyword == "SHOW" && strings.HasPrefix(sqlUpper, "SHOW GRANTS") {
 		return []string{"Grants for user"}
 	}
-	if strings.HasPrefix(sqlUpper, "SHOW WARNINGS") {
+	if statementKeyword == "SHOW" && strings.HasPrefix(sqlUpper, "SHOW WARNINGS") {
 		return []string{"Level", "Code", "Message"}
 	}
-	if strings.HasPrefix(sqlUpper, "SHOW ERRORS") {
+	if statementKeyword == "SHOW" && strings.HasPrefix(sqlUpper, "SHOW ERRORS") {
 		return []string{"Level", "Code", "Message"}
 	}
-	if strings.HasPrefix(sqlUpper, "SHOW EVENTS") {
+	if statementKeyword == "SHOW" && strings.HasPrefix(sqlUpper, "SHOW EVENTS") {
 		return []string{"Db", "Name", "Definer", "Time zone", "Type", "Execute at", "Interval value", "Interval field", "Starts", "Ends", "Status", "Originator", "character_set_client", "collation_connection", "Database Collation"}
 	}
-	if strings.HasPrefix(sqlUpper, "SHOW TRIGGERS") {
+	if statementKeyword == "SHOW" && strings.HasPrefix(sqlUpper, "SHOW TRIGGERS") {
 		return []string{"Trigger", "Event", "Table", "Statement", "Timing", "Created", "sql_mode", "Definer", "character_set_client", "collation_connection", "Database Collation"}
 	}
-	if strings.HasPrefix(sqlUpper, "SHOW PROCEDURE STATUS") {
+	if statementKeyword == "SHOW" && strings.HasPrefix(sqlUpper, "SHOW PROCEDURE STATUS") {
 		return []string{"Db", "Name", "Type", "Definer", "Modified", "Created", "Security_type", "Comment", "character_set_client", "collation_connection", "Database Collation"}
 	}
-	if strings.HasPrefix(sqlUpper, "SHOW FUNCTION STATUS") {
+	if statementKeyword == "SHOW" && strings.HasPrefix(sqlUpper, "SHOW FUNCTION STATUS") {
 		return []string{"Db", "Name", "Type", "Definer", "Modified", "Created", "Security_type", "Comment", "character_set_client", "collation_connection", "Database Collation"}
 	}
-	if strings.HasPrefix(sqlUpper, "SHOW COLUMNS") || strings.HasPrefix(sqlUpper, "SHOW FIELDS") {
+	if statementKeyword == "SHOW" && (strings.HasPrefix(sqlUpper, "SHOW COLUMNS") || strings.HasPrefix(sqlUpper, "SHOW FIELDS")) {
 		return []string{"Field", "Type", "Null", "Key", "Default", "Extra"}
 	}
-	if strings.HasPrefix(sqlUpper, "EXPLAIN") {
+	if statementKeyword == "EXPLAIN" && strings.HasPrefix(sqlUpper, "EXPLAIN") {
 		return []string{"id", "select_type", "table", "partitions", "type", "possible_keys", "key", "key_len", "ref", "rows", "filtered", "Extra"}
 	}
-	if strings.HasPrefix(sqlUpper, "DESC") || strings.HasPrefix(sqlUpper, "DESCRIBE") {
+	if statementKeyword == "DESC" || statementKeyword == "DESCRIBE" {
 		return []string{"Field", "Type", "Null", "Key", "Default", "Extra"}
 	}
-	if headers, ok := extractSelectExpressions(sql); ok {
-		return headers
+	if statementKeyword == "SELECT" {
+		// 只有真正返回结果集的查询语句才推导字段，避免误把 DML 的子查询当结果表结构。
+		if headers, ok := extractSelectExpressions(sql); ok {
+			return headers
+		}
 	}
-	// 其他类型默认返回 result
+	// 其他类型默认返回 result，兼容写操作和无法推断字段的场景。
 	return []string{"result"}
+}
+
+// EnsureUniqueHeaders 规范化并去重字段名，避免结果表建表时出现重复列。
+func EnsureUniqueHeaders(headers []string) []string {
+	result := make([]string, 0, len(headers))
+	used := make(map[string]struct{}, len(headers))
+	counts := make(map[string]int, len(headers))
+
+	for i, header := range headers {
+		base := strings.TrimSpace(header)
+		// 空字段名退回为顺序占位列，避免生成非法结构。
+		if base == "" {
+			base = fmt.Sprintf("field_%d", i+1)
+		}
+
+		counts[base]++
+		name := base
+		// 重名时追加顺序后缀，保证每个结果列唯一。
+		if _, exists := used[name]; exists {
+			for suffix := counts[base]; ; suffix++ {
+				candidate := fmt.Sprintf("%s_%d", base, suffix)
+				if _, duplicated := used[candidate]; duplicated {
+					continue
+				}
+				name = candidate
+				break
+			}
+		}
+
+		used[name] = struct{}{}
+		result = append(result, name)
+	}
+
+	return result
+}
+
+// detectResultStatementKeyword 识别最外层主语句类型，避免把 DML 子查询当查询结果处理。
+func detectResultStatementKeyword(sql string) string {
+	keyword := strings.ToUpper(firstKeyword(sql))
+	if keyword != "WITH" {
+		return keyword
+	}
+
+	withIndex := findTopLevelKeyword(sql, "WITH", 0)
+	if withIndex < 0 {
+		return keyword
+	}
+
+	if nextKeyword := findFirstTopLevelKeyword(sql, withIndex+len("WITH"), "SELECT", "INSERT", "UPDATE", "DELETE", "REPLACE"); nextKeyword != "" {
+		return nextKeyword
+	}
+
+	return keyword
+}
+
+// findFirstTopLevelKeyword 返回起始位置之后最先出现的最外层关键字。
+func findFirstTopLevelKeyword(sql string, start int, keywords ...string) string {
+	matchedKeyword := ""
+	matchedIndex := -1
+
+	for _, keyword := range keywords {
+		index := findTopLevelKeyword(sql, keyword, start)
+		// 只保留最早命中的关键字，保证 WITH 场景取到真实主语句。
+		if index >= 0 && (matchedIndex == -1 || index < matchedIndex) {
+			matchedIndex = index
+			matchedKeyword = strings.ToUpper(keyword)
+		}
+	}
+
+	return matchedKeyword
 }
 
 // extractSelectExpressions 提取最外层 SELECT 的字段列表。

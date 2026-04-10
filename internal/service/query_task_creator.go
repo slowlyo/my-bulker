@@ -88,6 +88,7 @@ func (s *QueryTaskCreatorService) Create(ctx context.Context, req *model.CreateQ
 			} else {
 				headers = sql_parse.DetectResultHeaders(sqlContent)
 			}
+			headers = sql_parse.EnsureUniqueHeaders(headers)
 			tableFields := []model.TableField{
 				{Name: "query_task_execution_id", Type: "UINT", Comment: "主键ID"},
 				{Name: "query_task_execution_instance_id", Type: "UINT", Comment: "实例ID"},
@@ -95,10 +96,7 @@ func (s *QueryTaskCreatorService) Create(ctx context.Context, req *model.CreateQ
 				{Name: "query_task_execution_database_name", Type: "TEXT", Comment: "数据库名称"},
 				{Name: "query_task_execution_error_message", Type: "TEXT", Comment: "错误信息"},
 			}
-			for i, h := range headers {
-				if h == "" {
-					h = "field_" + fmt.Sprint(i+1)
-				}
+			for _, h := range headers {
 				tableFields = append(tableFields, model.TableField{
 					Name:    h,
 					Type:    "TEXT",
@@ -113,13 +111,6 @@ func (s *QueryTaskCreatorService) Create(ctx context.Context, req *model.CreateQ
 			} else {
 				tableSchema = `{"fields":[{"name":"result","type":"TEXT","comment":"查询结果"}]}`
 			}
-
-			fmt.Println()
-			fmt.Println()
-			fmt.Println()
-			fmt.Println(tableSchema)
-			fmt.Println()
-			fmt.Println()
 
 			// 解析表结构字段
 			var schemaObj model.TableSchema

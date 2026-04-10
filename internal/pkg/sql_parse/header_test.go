@@ -52,6 +52,21 @@ func TestDetectResultHeaders(t *testing.T) {
 			expects: []string{"result"},
 		},
 		{
+			name:    "insert select should fallback to result",
+			input:   "INSERT INTO t(a, b) SELECT 1, 2 FROM dual;",
+			expects: []string{"result"},
+		},
+		{
+			name:    "with select should infer final select headers",
+			input:   "WITH cte AS (SELECT id, name FROM t1) SELECT id, name FROM cte;",
+			expects: []string{"id", "name"},
+		},
+		{
+			name:    "with insert should fallback to result",
+			input:   "WITH cte AS (SELECT 1 AS a) INSERT INTO t(a) SELECT a FROM cte;",
+			expects: []string{"result"},
+		},
+		{
 			name:    "select with join",
 			input:   "SELECT a.id, b.name FROM a JOIN b ON a.bid = b.id;",
 			expects: []string{"a.id", "b.name"},
@@ -106,6 +121,39 @@ func TestDetectResultHeaders(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			got := DetectResultHeaders(tt.input)
+			if !reflect.DeepEqual(got, tt.expects) {
+				t.Errorf("got = %#v, expects = %#v", got, tt.expects)
+			}
+		})
+	}
+}
+
+func TestEnsureUniqueHeaders(t *testing.T) {
+	tests := []struct {
+		name    string
+		input   []string
+		expects []string
+	}{
+		{
+			name:    "duplicate literal headers",
+			input:   []string{"2", "2", "now()", "now()"},
+			expects: []string{"2", "2_2", "now()", "now()_2"},
+		},
+		{
+			name:    "empty headers fallback to numbered fields",
+			input:   []string{"", " ", ""},
+			expects: []string{"field_1", "field_2", "field_3"},
+		},
+		{
+			name:    "preserve first explicit field and suffix later duplicates",
+			input:   []string{"field_1", "", "field_1"},
+			expects: []string{"field_1", "field_2", "field_1_2"},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := EnsureUniqueHeaders(tt.input)
 			if !reflect.DeepEqual(got, tt.expects) {
 				t.Errorf("got = %#v, expects = %#v", got, tt.expects)
 			}
