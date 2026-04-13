@@ -371,12 +371,11 @@ const CreateTaskForm: React.FC<CreateTaskFormProps> = ({
 
                                 <Card bordered={false}>
                                     <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 16 }}>
-                                        <Button size="large" onClick={resetFormToDefault}>
+                                        <Button onClick={resetFormToDefault}>
                                             重置所有配置
                                         </Button>
                                         <Button
                                             type="primary"
-                                            size="large"
                                             onClick={handleSubmit}
                                             loading={loading}
                                         >

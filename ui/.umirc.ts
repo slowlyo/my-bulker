@@ -1,5 +1,7 @@
 import { defineConfig } from "@umijs/max";
 
+const appVersion = process.env.APP_VERSION || "v1.0.0";
+
 export default defineConfig({
     antd: {
         configProvider: {},
@@ -26,6 +28,9 @@ export default defineConfig({
             target: "http://localhost:9092/",
             changeOrigin: true,
         },
+    },
+    define: {
+        __APP_VERSION__: appVersion,
     },
     routes: [
         {

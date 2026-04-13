@@ -2,8 +2,10 @@ package bootstrap
 
 import (
 	"embed"
+	"fmt"
 	"io/fs"
 	"log"
+	"my-bulker/internal/pkg/appmeta"
 	"my-bulker/internal/pkg/database"
 	"my-bulker/internal/pkg/scheduler"
 	"my-bulker/internal/router"
@@ -33,7 +35,7 @@ func NewApp(frontendFS embed.FS) *fiber.App {
 
 	// 创建 Fiber 应用实例
 	app := fiber.New(fiber.Config{
-		AppName: "my-bulker v1.0.0",
+		AppName: fmt.Sprintf("my-bulker %s", appmeta.DisplayVersion()),
 	})
 
 	// 添加全局中间件

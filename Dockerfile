@@ -1,6 +1,7 @@
 # Stage 1: Build the frontend assets
 FROM node:22-alpine AS frontend-builder
 WORKDIR /app
+ARG APP_VERSION=v1.0.0
 
 # 配置npm镜像源加速
 RUN npm config set registry https://registry.npmmirror.com
@@ -19,11 +20,12 @@ COPY ui/ ./ui/
 RUN rm -rf ui/dist
 
 # Build the frontend
-RUN cd ui && pnpm build
+RUN cd ui && APP_VERSION="${APP_VERSION}" pnpm build
 
 # Stage 2: Build the Go backend
 FROM golang:1.24 AS builder
 WORKDIR /app
+ARG APP_VERSION=v1.0.0
 
 # 配置Go模块代理加速下载
 ENV GOPROXY=https://goproxy.cn,direct
@@ -42,7 +44,7 @@ COPY . .
 
 # Build the Go application, disabling CGO for a static binary
 # This makes it compatible with the minimal alpine base image
-RUN CGO_ENABLED=0 GOOS=linux go build -v -o /app/my-bulker .
+RUN CGO_ENABLED=0 GOOS=linux go build -v -ldflags="-X my-bulker/internal/pkg/appmeta.Version=${APP_VERSION}" -o /app/my-bulker .
 
 # Stage 3: Create the final, minimal production image
 FROM alpine:latest

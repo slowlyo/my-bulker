@@ -1,5 +1,7 @@
 package service
 
+import "my-bulker/internal/pkg/appmeta"
+
 // HealthService 健康检查服务
 type HealthService struct{}
 
@@ -12,6 +14,6 @@ func NewHealthService() *HealthService {
 func (s *HealthService) GetStatus() map[string]interface{} {
 	return map[string]interface{}{
 		"status":  "ok",
-		"version": "1.0.0",
+		"version": appmeta.DisplayVersion(),
 	}
 }

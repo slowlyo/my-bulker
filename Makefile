@@ -1,5 +1,6 @@
 # 应用名称
 APP_NAME = my-bulker
+APP_VERSION ?= v1.0.0
 
 # 构建参数
 BUILD_DIR = build
@@ -14,33 +15,33 @@ all: build
 build:
 	@echo "Building $(APP_NAME)..."
 	@mkdir -p $(BUILD_DIR)
-	@go build -o $(BUILD_DIR)/$(APP_NAME) $(MAIN_FILE)
+	@go build -ldflags "-X my-bulker/internal/pkg/appmeta.Version=$(APP_VERSION)" -o $(BUILD_DIR)/$(APP_NAME) $(MAIN_FILE)
 	@echo "Build complete: $(BUILD_DIR)/$(APP_NAME)"
 
 # 构建前端
 .PHONY: build-ui
 build-ui:
 	@echo "Building UI..."
-	@cd ui && pnpm build
+	@cd ui && APP_VERSION="$(APP_VERSION)" pnpm build
 
 # 运行应用
 .PHONY: run
 run:
 	@echo "Running $(APP_NAME)..."
-	@go run $(MAIN_FILE)
+	@go run -ldflags "-X my-bulker/internal/pkg/appmeta.Version=$(APP_VERSION)" $(MAIN_FILE)
 
 # 运行前端
 .PHONY: run-ui
 run-ui:
 	@echo "Running UI..."
-	@cd ui && pnpm dev
+	@cd ui && APP_VERSION="$(APP_VERSION)" pnpm dev
 
 # 开发模式：同时启动前后端
 .PHONY: dev
 dev:
 	@echo "Starting backend and frontend in development mode..."
-	@which air > /dev/null 2>&1 && (air &) || (go run $(MAIN_FILE) &) \
-	&& (cd ui && pnpm install && pnpm dev)
+	@which air > /dev/null 2>&1 && (air &) || (go run -ldflags "-X my-bulker/internal/pkg/appmeta.Version=$(APP_VERSION)" $(MAIN_FILE) &) \
+	&& (cd ui && pnpm install && APP_VERSION="$(APP_VERSION)" pnpm dev)
 
 # 清理构建产物
 .PHONY: clean

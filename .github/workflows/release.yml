@@ -19,6 +19,15 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
+      - name: Resolve app version
+        run: |
+          if [ "${GITHUB_REF_TYPE}" = "tag" ]; then
+            echo "APP_VERSION=${GITHUB_REF_NAME}" >> $GITHUB_ENV
+          else
+            echo "APP_VERSION=snapshot-${GITHUB_SHA::7}" >> $GITHUB_ENV
+          fi
+        shell: bash
+
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
@@ -54,7 +63,7 @@ jobs:
 
       - name: Build Go application
         run: |
-          CGO_ENABLED=0 GOOS=${{ matrix.goos }} GOARCH=${{ matrix.goarch }} go build -v -ldflags="-s -w" -o "release/${{ env.BINARY_NAME }}${{ env.BINARY_EXT }}" .
+          CGO_ENABLED=0 GOOS=${{ matrix.goos }} GOARCH=${{ matrix.goarch }} go build -v -ldflags="-s -w -X my-bulker/internal/pkg/appmeta.Version=${{ env.APP_VERSION }}" -o "release/${{ env.BINARY_NAME }}${{ env.BINARY_EXT }}" .
         env:
           GOOS: ${{ matrix.goos }}
           GOARCH: ${{ matrix.goarch }}
