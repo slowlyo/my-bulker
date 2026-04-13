@@ -260,6 +260,11 @@ func normalizeSelectHeader(expr string) string {
 		return strings.Trim(expr, "`")
 	}
 
+	// 简单列引用统一退化为真实列名，避免 schema 与数据库返回列名不一致。
+	if columnName := extractSimpleColumnName(expr); columnName != "" {
+		return columnName
+	}
+
 	return normalizeExpression(expr)
 }
 
@@ -275,6 +280,41 @@ func extractAlias(expr string) string {
 		return ""
 	}
 	return alias
+}
+
+// extractSimpleColumnName 提取简单列引用的真实列名，忽略表名前缀。
+func extractSimpleColumnName(expr string) string {
+	if expr == "" || !strings.Contains(expr, ".") {
+		return ""
+	}
+
+	// 只有纯标识符链才允许裁剪，表达式和字面量仍走原有逻辑。
+	if strings.ContainsAny(expr, " +-*/%<>=!(),\"'") {
+		return ""
+	}
+
+	parts := strings.Split(expr, ".")
+	if len(parts) < 2 {
+		return ""
+	}
+
+	for _, part := range parts {
+		part = strings.TrimSpace(strings.Trim(part, "`"))
+		// 任一段为空都说明不是合法列引用，直接放弃裁剪。
+		if part == "" {
+			return ""
+		}
+	}
+
+	return strings.TrimSpace(strings.Trim(parts[len(parts)-1], "`"))
+}
+
+// NormalizeResultHeaderName 归一化结果字段名，优先返回数据库实际列名风格。
+func NormalizeResultHeaderName(name string) string {
+	if columnName := extractSimpleColumnName(strings.TrimSpace(name)); columnName != "" {
+		return columnName
+	}
+	return strings.TrimSpace(name)
 }
 
 // normalizeExpression 规范化表达式展示文本。

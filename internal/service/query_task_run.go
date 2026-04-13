@@ -8,6 +8,7 @@ import (
 	"log"
 	"my-bulker/internal/model"
 	"my-bulker/internal/pkg/database"
+	"my-bulker/internal/pkg/sql_parse"
 	"strconv"
 	"sync"
 	"time"
@@ -371,6 +372,13 @@ func (s *QueryTaskRunService) executeSQLsConcurrently(
 						for _, f := range schemaObj.Fields {
 							b64 := base64.RawURLEncoding.EncodeToString([]byte(f.Name))
 							b64Map[f.Name] = b64
+							normalizedName := sql_parse.NormalizeResultHeaderName(f.Name)
+							// 旧任务 schema 里可能保留了表前缀，这里补一层兼容映射。
+							if normalizedName != f.Name {
+								if _, exists := b64Map[normalizedName]; !exists {
+									b64Map[normalizedName] = b64
+								}
+							}
 						}
 						buf := buffers[currentSQL.ID]
 						buf.mu.Lock()

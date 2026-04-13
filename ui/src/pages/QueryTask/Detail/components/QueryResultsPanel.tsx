@@ -42,6 +42,21 @@ interface QueryResultsPanelProps {
 
 const { TabPane } = Tabs;
 
+const normalizeDisplayFieldName = (name: string) => {
+    const trimmedName = name.trim();
+    if (!trimmedName.includes('.')) {
+        return trimmedName;
+    }
+    if (/[\s()+\-*/%<>=!,'"]/.test(trimmedName)) {
+        return trimmedName;
+    }
+    const parts = trimmedName.split('.').map((part) => part.replace(/`/g, '').trim());
+    if (parts.some((part) => !part)) {
+        return trimmedName;
+    }
+    return parts[parts.length - 1];
+};
+
 /**
  * QueryResultsPanel 支持 ref，父组件可通过 ref.current.refresh() 触发表格刷新
  */
@@ -157,6 +172,11 @@ const QueryResultsPanel = forwardRef<any, QueryResultsPanelProps>(
                 const parsed: TableSchema = JSON.parse(activeSQL.result_table_schema);
                 
                 const baseFields = parsed.fields.filter(f => !f.name.startsWith("query_task_execution_"));
+                const displayNameCount = baseFields.reduce<Record<string, number>>((acc, field) => {
+                    const displayName = normalizeDisplayFieldName(field.name);
+                    acc[displayName] = (acc[displayName] || 0) + 1;
+                    return acc;
+                }, {});
                 
                 const sourceCol: ColDef = {
                     headerName: "来源",
@@ -175,7 +195,7 @@ const QueryResultsPanel = forwardRef<any, QueryResultsPanelProps>(
                 };
 
                 const dataCols: ColDef[] = baseFields.map(f => ({
-                    headerName: f.name,
+                    headerName: displayNameCount[normalizeDisplayFieldName(f.name)] > 1 ? f.name : normalizeDisplayFieldName(f.name),
                     field: f.name,
                     sortable: true,
                     filter: true,

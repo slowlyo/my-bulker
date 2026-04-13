@@ -24,7 +24,7 @@ func TestDetectResultHeaders(t *testing.T) {
 		{
 			name:    "select with table prefix",
 			input:   "SELECT t.a, t2.b FROM t;",
-			expects: []string{"t.a", "t2.b"},
+			expects: []string{"a", "b"},
 		},
 		{
 			name:    "show columns",
@@ -69,7 +69,7 @@ func TestDetectResultHeaders(t *testing.T) {
 		{
 			name:    "select with join",
 			input:   "SELECT a.id, b.name FROM a JOIN b ON a.bid = b.id;",
-			expects: []string{"a.id", "b.name"},
+			expects: []string{"id", "name"},
 		},
 		{
 			name:    "select with group by",
@@ -116,11 +116,16 @@ func TestDetectResultHeaders(t *testing.T) {
 			input:   "SELECT a as `字段A`, b as '字段B' FROM t;",
 			expects: []string{"`字段A`", "'字段B'"},
 		},
+		{
+			name:    "select with duplicate qualified columns should keep unique names",
+			input:   "SELECT a.id, b.id FROM a JOIN b ON a.id = b.id;",
+			expects: []string{"id", "id_2"},
+		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := DetectResultHeaders(tt.input)
+			got := EnsureUniqueHeaders(DetectResultHeaders(tt.input))
 			if !reflect.DeepEqual(got, tt.expects) {
 				t.Errorf("got = %#v, expects = %#v", got, tt.expects)
 			}

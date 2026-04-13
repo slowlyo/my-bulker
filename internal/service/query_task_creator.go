@@ -270,35 +270,42 @@ func (s *QueryTaskCreatorService) generateResultTableName(taskID uint, sqlOrder 
 // inferTableSchemaWithInstance 推断表结构
 func (s *QueryTaskCreatorService) inferTableSchemaWithInstance(sqlContent string, instanceID uint, dbName string) []string {
 	headers := sql_parse.DetectResultHeaders(sqlContent)
-	needRealCols := false
-	for _, h := range headers {
-		if strings.Contains(h, "*") {
-			needRealCols = true
-			break
-		}
-	}
-	if needRealCols && instanceID > 0 && dbName != "" {
-		var instance model.Instance
-		if err := s.db.First(&instance, instanceID).Error; err == nil {
-			dbConn, err := database.NewMySQLGormDB(&instance, dbName, 2)
-			if err == nil {
-				sqlToExec := sqlContent
-				if !strings.Contains(strings.ToLower(sqlContent), "limit ") {
-					sqlToExec = sqlContent + " LIMIT 1"
-				}
-				rows, err := dbConn.Raw(sqlToExec).Rows()
-				if err == nil {
-					cols, err2 := rows.Columns()
-					if err2 == nil && len(cols) > 0 {
-						headers = []string{}
-						for _, c := range cols {
-							headers = append(headers, c)
-						}
-					}
-					rows.Close()
-				}
-			}
+	// 能连上真实数据库时优先读取驱动返回列名，保证建表字段与执行结果完全一致。
+	if instanceID > 0 && dbName != "" {
+		if realHeaders := s.fetchRealResultHeaders(sqlContent, instanceID, dbName); len(realHeaders) > 0 {
+			return realHeaders
 		}
 	}
 	return headers
+}
+
+// fetchRealResultHeaders 从真实数据库获取查询返回列名。
+func (s *QueryTaskCreatorService) fetchRealResultHeaders(sqlContent string, instanceID uint, dbName string) []string {
+	var instance model.Instance
+	if err := s.db.First(&instance, instanceID).Error; err != nil {
+		return nil
+	}
+
+	dbConn, err := database.NewMySQLGormDB(&instance, dbName, 2)
+	if err != nil {
+		return nil
+	}
+
+	sqlToExec := sqlContent
+	if !strings.Contains(strings.ToLower(sqlContent), "limit ") {
+		sqlToExec = sqlContent + " LIMIT 1"
+	}
+
+	rows, err := dbConn.Raw(sqlToExec).Rows()
+	if err != nil {
+		return nil
+	}
+	defer rows.Close()
+
+	cols, err := rows.Columns()
+	if err != nil || len(cols) == 0 {
+		return nil
+	}
+
+	return cols
 }
