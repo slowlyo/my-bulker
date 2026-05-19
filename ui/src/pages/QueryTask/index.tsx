@@ -1,6 +1,6 @@
 import { PageContainer, ProTable } from '@ant-design/pro-components';
 import type { ActionType, ProColumns } from '@ant-design/pro-components';
-import { Space, Button, message, Modal, Tooltip, Segmented, Tabs, Progress, Typography } from 'antd';
+import { Space, Button, message, Modal, Tooltip, Segmented, Tabs, Typography } from 'antd';
 import { useRef, useState, useEffect } from 'react';
 import { EyeOutlined, DeleteOutlined, StarOutlined, StarFilled } from '@ant-design/icons';
 import { queryQueryTaskList, createQueryTask, batchDeleteQueryTasks, toggleFavoriteStatus } from '@/services/queryTask/QueryTaskController';
@@ -162,27 +162,27 @@ const QueryTaskPage: React.FC = () => {
             search: false,
             render: (_, record) => {
                 const hasFailure = record.failed_dbs > 0 || record.failed_sqls > 0;
-                const dbPercent = record.total_dbs === 0 ? 0 : Math.round((record.completed_dbs / record.total_dbs) * 100);
-                
+                const pendingDbs = record.total_dbs - record.completed_dbs - record.failed_dbs;
+                const allSuccess = !hasFailure && pendingDbs === 0;
+
                 return (
                     <div style={{ width: '100%', paddingRight: 24, margin: '8px 0' }}>
                         <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, marginBottom: 4 }}>
                             <span style={{ color: '#4b5563' }}>数据库 ({record.completed_dbs}/{record.total_dbs})</span>
                             <span style={{ color: '#4b5563' }}>SQL ({record.completed_sqls}/{record.total_sqls})</span>
                         </div>
-                        <Progress 
-                            percent={dbPercent} 
-                            status={hasFailure ? 'exception' : (dbPercent === 100 ? 'success' : 'normal')}
-                            size="small" 
-                            showInfo={false} 
-                            style={{ margin: 0 }}
-                        />
+                        {/* 分段进度条：蓝色完成 / 红色失败 / 灰色待执行 */}
+                        <div style={{ display: 'flex', height: 6, borderRadius: 3, overflow: 'hidden', background: '#e5e7eb' }}>
+                            <div style={{ flex: record.completed_dbs, background: allSuccess ? '#52c41a' : '#1890ff' }} />
+                            {hasFailure && <div style={{ flex: record.failed_dbs, background: '#ff4d4f' }} />}
+                            {pendingDbs > 0 && <div style={{ flex: pendingDbs, background: '#e5e7eb' }} />}
+                        </div>
                         {hasFailure ? (
                             <div style={{ fontSize: 12, color: '#ef4444', marginTop: 4 }}>
                                 失败：{record.failed_dbs} 个库异常，{record.failed_sqls} 条SQL失败
                             </div>
                         ) : (
-                            <div style={{ fontSize: 12, color: '#10b981', marginTop: 4, visibility: dbPercent === 100 ? 'visible' : 'hidden' }}>
+                            <div style={{ fontSize: 12, color: '#10b981', marginTop: 4, visibility: allSuccess ? 'visible' : 'hidden' }}>
                                 全部执行成功
                             </div>
                         )}

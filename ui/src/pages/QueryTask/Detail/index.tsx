@@ -95,6 +95,18 @@ const QueryTaskDetailPage: React.FC = () => {
         loadAllData(true).then(() => { firstLoading.current = false; });
     }, [id]);
 
+    // 自动执行：任务处于待执行状态时，自动触发运行，无需用户手动点击。
+    const autoRunTriggered = useRef(false);
+    useEffect(() => {
+        if (!task || task.status !== 0 || autoRunTriggered.current) return;
+        autoRunTriggered.current = true;
+        runQueryTask(parseInt(id!)).then((res) => {
+            if (res.code === 200) {
+                loadAllData(false);
+            }
+        });
+    }, [task?.status, id]);
+
     // 轮询逻辑：查询中每1秒刷新一次
     useEffect(() => {
         if (!task || task.status !== 1) return;

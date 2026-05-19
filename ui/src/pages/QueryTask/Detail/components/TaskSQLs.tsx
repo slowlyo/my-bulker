@@ -44,33 +44,64 @@ const TaskSQLs: React.FC<TaskSQLsProps> = ({ sqls, sqlExecutions, loading, statu
                 style={{ background: 'transparent', padding: 0 }}
                 items={sqls.map((sql, index) => ({
                     key: String(index),
-                    label: (
-                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '4px 0' }}>
-                            <Space size="middle">
-                                <Space size={4}>
-                                    <CodeOutlined style={{ color: '#1890ff' }} />
-                                    <span style={{ fontWeight: '500', fontSize: '14px', color: '#1f2937' }}>
-                                        #{sql.sql_order}
+                    label: (() => {
+                        const pendingDbs = sql.total_dbs - sql.completed_dbs - sql.failed_dbs;
+                        const allSuccess = sql.failed_dbs === 0 && pendingDbs === 0;
+                        return (
+                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '4px 0' }}>
+                                <Space size="middle">
+                                    <Space size={4}>
+                                        <CodeOutlined style={{ color: '#1890ff' }} />
+                                        <span style={{ fontWeight: '500', fontSize: '14px', color: '#1f2937' }}>
+                                            #{sql.sql_order}
+                                        </span>
+                                    </Space>
+                                    <Space size={4} style={{ color: '#4b5563', fontSize: '13px' }}>
+                                        <Tag color="blue" style={{ margin: 0, border: 'none' }}>{sql.result_table_name}</Tag>
+                                    </Space>
+                                </Space>
+                                <Space size="middle" align="center">
+                                    {/* 进度条 */}
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '2px', width: '100px' }}>
+                                        <div style={{
+                                            flex: sql.completed_dbs,
+                                            height: 4,
+                                            borderRadius: '2px 0 0 2px',
+                                            background: allSuccess ? '#52c41a' : '#1890ff',
+                                            borderTopRightRadius: sql.failed_dbs > 0 ? 0 : (pendingDbs > 0 ? 0 : 2),
+                                            borderBottomRightRadius: sql.failed_dbs > 0 ? 0 : (pendingDbs > 0 ? 0 : 2),
+                                        }} />
+                                        {sql.failed_dbs > 0 && (
+                                            <div style={{
+                                                flex: sql.failed_dbs,
+                                                height: 4,
+                                                background: '#ff4d4f',
+                                                borderRadius: sql.completed_dbs === 0 ? (pendingDbs > 0 ? '2px 0 0 2px' : 2) : 0,
+                                            }} />
+                                        )}
+                                        {pendingDbs > 0 && (
+                                            <div style={{
+                                                flex: pendingDbs,
+                                                height: 4,
+                                                background: '#e5e7eb',
+                                                borderRadius: (sql.completed_dbs === 0 && sql.failed_dbs === 0) ? 2 : '0 2px 2px 0',
+                                            }} />
+                                        )}
+                                    </div>
+                                    <Space size={4} style={{ fontSize: '13px', color: '#6b7280' }}>
+                                        <DatabaseOutlined /> {sql.total_dbs}
+                                    </Space>
+                                    <Space size={4} style={{ fontSize: '13px' }}>
+                                        <span style={{ color: allSuccess ? '#10b981' : '#1890ff' }}>✓ {sql.completed_dbs}</span>
+                                        {sql.failed_dbs > 0 && <span style={{ color: '#ef4444' }}>✗ {sql.failed_dbs}</span>}
+                                    </Space>
+                                    <span style={{ fontSize: '12px', color: '#9ca3af', width: '130px', textAlign: 'right' }}>
+                                        {sql.started_at ? formatDateTime(sql.started_at) : '-'}
                                     </span>
                                 </Space>
-                                <Space size={4} style={{ color: '#4b5563', fontSize: '13px' }}>
-                                    <Tag color="blue" style={{ margin: 0, border: 'none' }}>{sql.result_table_name}</Tag>
-                                </Space>
-                            </Space>
-                            <Space size="large">
-                                <Space size={4} style={{ fontSize: '13px', color: '#6b7280' }}>
-                                    <DatabaseOutlined /> {sql.total_dbs} 个库
-                                </Space>
-                                <Space size={4} style={{ fontSize: '13px' }}>
-                                    <span style={{ color: sql.completed_dbs === sql.total_dbs ? '#10b981' : '#6b7280' }}>✓ {sql.completed_dbs}</span>
-                                    {sql.failed_dbs > 0 && <span style={{ color: '#ef4444' }}>✗ {sql.failed_dbs}</span>}
-                                </Space>
-                                <span style={{ fontSize: '12px', color: '#9ca3af', width: '130px', textAlign: 'right' }}>
-                                    {sql.started_at ? formatDateTime(sql.started_at) : '-'}
-                                </span>
-                            </Space>
-                        </div>
-                    ),
+                            </div>
+                        );
+                    })(),
                     style: {
                         marginBottom: '8px',
                         borderBottom: '1px solid #f3f4f6',
