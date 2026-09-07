@@ -40,5 +40,5 @@ fi
 exec wails build \
   -skipbindings \
   -ldflags "-X my-bulker/internal/pkg/appmeta.Version=${APP_VERSION}" \
-  "${extra_args[@]}" \
+  ${extra_args[@]+"${extra_args[@]}"} \
   "$@"
