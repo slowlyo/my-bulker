@@ -79,10 +79,36 @@
 >
 > 程序首次运行时，会在可执行文件所在的目录自动创建一个 `data` 文件夹，用于存放所有应用数据（包括 `app.db` 数据库文件）。请确保程序对该目录有写入权限。
 
+## 🖥️ 桌面端
+
+Release 会额外上传 Wails 桌面包（文件名含 `desktop`），无需再手动打开浏览器。Web 服务端压缩包仍然保留。
+
+1. 下载对应压缩包：
+   - Windows：`my-bulker-desktop-windows-amd64.zip`
+   - macOS：`my-bulker-desktop-darwin-universal.zip`（Intel / Apple Silicon）
+   - Linux：`my-bulker-desktop-linux-amd64.tar.gz`
+2. 解压后直接运行：
+   - Windows：双击 `my-bulker-desktop.exe`（缺少 WebView2 时会使用内置引导安装）
+   - macOS：打开 `my-bulker-desktop.app`（未签名，若拦截请右键打开）
+   - Linux：运行 `./my-bulker-desktop`，需已安装 `libgtk-3-0` 与 `libwebkit2gtk-4.1-0`
+3. 数据目录：Windows / Linux 绿色包默认写在可执行文件旁的 `data/`；macOS `.app` 写在 `~/Library/Application Support/my-bulker/data/`。
+
+本地打包（需 [Wails CLI v2](https://wails.io)）：
+
+```bash
+go install github.com/wailsapp/wails/v2/cmd/wails@v2.12.0
+# Linux 另需: sudo apt install libgtk-3-dev libwebkit2gtk-4.1-dev
+APP_VERSION=v1.0.0 make build-desktop
+# 产物在 build/bin/
+```
+
+日常开发仍用 Docker / `make dev`；桌面构建只用于出包。
+
 ## 🛠️ 技术栈
 
 - **后端**: Go, Fiber (高性能 Web 框架)
 - **前端**: UmiJS, Ant Design Pro, Tailwind CSS
+- **桌面**: Wails v2（包装现有 Fiber + 前端产物）
 - **数据库**: GORM (ORM), SQLite (默认元数据存储)
 
 ## 🛠️ 本地开发 (Hot Reload)

@@ -1,0 +1,19 @@
+{
+  "$schema": "https://wails.io/schemas/config.v2.json",
+  "name": "my-bulker",
+  "outputfilename": "my-bulker-desktop",
+  "frontend:dir": "ui",
+  "frontend:install": "pnpm install",
+  "frontend:build": "pnpm build",
+  "author": {
+    "name": "slowlyo",
+    "email": "slowlyo_email@qq.com"
+  },
+  "info": {
+    "companyName": "slowlyo",
+    "productName": "My Bulker",
+    "productVersion": "1.0.0",
+    "copyright": "Copyright © slowlyo",
+    "comments": "MySQL 多库批量查询工具"
+  }
+}

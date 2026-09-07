@@ -1,0 +1,33 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [master]
+
+jobs:
+  check:
+    name: Build tags and workflow
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Static-check release.yml
+        run: ./scripts/check-release-workflow.sh
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+
+      - name: Stub frontend embed
+        run: |
+          mkdir -p ui/dist
+          printf '%s\n' '<!doctype html><title>my-bulker</title>' > ui/dist/index.html
+
+      - name: Build server binary
+        run: CGO_ENABLED=0 go build -o /tmp/my-bulker .
+
+      - name: Test
+        run: go test ./internal/pkg/appdata ./internal/pkg/sql_parse

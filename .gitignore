@@ -6,8 +6,16 @@ data
 
 .cursor/rules/user.mdc
 ui/dist
-build
 
-# go build 默认写到仓库根目录的可执行文件；Makefile/air 产物已由 build 覆盖
+# go build 默认写到仓库根目录的可执行文件
 /my-bulker
 /my-bulker.exe
+
+# Make / Air / Wails 产物。build/darwin、build/windows、build/appicon.png 需要入库，不能整目录忽略 build。
+/build/bin/
+/build/my-bulker
+/build/my-bulker.exe
+/build/main
+/build/windows/*.syso
+/build/windows/icon.ico
+/build/darwin/*.icns
