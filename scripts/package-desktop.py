@@ -41,6 +41,24 @@ def must_exist(path: Path, kind: str) -> Path:
     return path
 
 
+def find_darwin_app(bin_dir: Path) -> Path:
+    """按 Wails 当前名称、历史名称和唯一应用包依次定位 macOS 产物。"""
+    for name in ("my-bulker.app", "my-bulker-desktop.app"):
+        app = bin_dir / name
+        # 优先使用明确支持的名称，避免目录中其他应用包干扰。
+        if app.is_dir():
+            return app
+
+    apps = sorted(path for path in bin_dir.glob("*.app") if path.is_dir())
+    # 自定义 Wails 名称仅在结果唯一时可安全识别。
+    if len(apps) == 1:
+        return apps[0]
+
+    listing = [path.name for path in bin_dir.iterdir()]
+    # 没有或存在多个未知应用包时拒绝猜测，目录列表可直接用于排查。
+    raise SystemExit(f"未找到唯一的 macOS .app 产物；目录内容: {listing}")
+
+
 def add_readme(stage: Path, repo_root: Path) -> None:
     """把 README 打进压缩包，和现有服务端发布包保持一致。"""
     readme = repo_root / "README.md"
@@ -85,7 +103,7 @@ def main() -> int:
         shutil.rmtree(stage)
     elif args.platform == "darwin":
         archive = Path(args.output or default_dir / f"my-bulker-desktop-darwin-{args.arch}.zip")
-        app = must_exist(bin_dir / "my-bulker-desktop.app", "dir")
+        app = find_darwin_app(bin_dir)
         stage = archive.parent / f".stage-{archive.stem}"
         if stage.exists():
             shutil.rmtree(stage)
