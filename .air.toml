@@ -7,7 +7,7 @@ tmp_dir = "build"
 
 [build]
   # 编译命令
-  cmd = "go build -o ./build/main ./main.go"
+  cmd = "go build -o ./build/main ."
   # 运行编译后的二进制文件的命令
   bin = "./build/main"
   # 运行时的附加参数

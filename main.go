@@ -1,7 +1,8 @@
+//go:build !desktop
+
 package main
 
 import (
-	"embed"
 	"flag"
 	"fmt"
 	"log"
@@ -9,9 +10,6 @@ import (
 	"os"
 	"strconv"
 )
-
-//go:embed all:ui/dist
-var frontendFS embed.FS
 
 func main() {
 	// 定义一个命令行 flag 来接收端口号

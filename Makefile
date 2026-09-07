@@ -4,7 +4,7 @@ APP_VERSION ?= v1.0.0
 
 # 构建参数
 BUILD_DIR = build
-MAIN_FILE = main.go
+MAIN_FILE = .
 
 # 默认目标
 .PHONY: all
@@ -23,6 +23,11 @@ build:
 build-ui:
 	@echo "Building UI..."
 	@cd ui && APP_VERSION="$(APP_VERSION)" pnpm build
+
+# 构建桌面端（Wails）。Linux 若仅有 webkit2gtk-4.1，由脚本自动加 webkit2_41 标签。
+.PHONY: build-desktop
+build-desktop:
+	@APP_VERSION="$(APP_VERSION)" ./scripts/build-desktop.sh
 
 # 运行应用
 .PHONY: run
@@ -47,15 +52,15 @@ dev:
 .PHONY: clean
 clean:
 	@echo "Cleaning..."
-	@rm -rf $(BUILD_DIR)
+	@rm -rf $(BUILD_DIR)/bin $(BUILD_DIR)/$(APP_NAME) $(BUILD_DIR)/$(APP_NAME).exe $(BUILD_DIR)/main
 	@go clean
 	@echo "Clean complete"
 
-# 整理依赖
+# 整理依赖。Wails 入口使用 desktop tag，tidy 必须带上，否则会丢掉该依赖。
 .PHONY: tidy
 tidy:
 	@echo "Tidying dependencies..."
-	@go mod tidy
+	@GOFLAGS='-tags=desktop' go mod tidy
 	@echo "Tidy complete"
 
 # 显示帮助信息
@@ -71,6 +76,9 @@ help:
 	@echo "Frontend commands:"
 	@echo "  make build-ui  - Build the frontend application"
 	@echo "  make run-ui    - Run the frontend development server"
+	@echo ""
+	@echo "Desktop commands:"
+	@echo "  make build-desktop - Build the Wails desktop app (needs wails CLI)"
 	@echo ""
 	@echo "Common commands:"
 	@echo "  make dev    - Start both backend and frontend for development"
