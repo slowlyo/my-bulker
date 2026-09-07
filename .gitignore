@@ -7,3 +7,7 @@ data
 .cursor/rules/user.mdc
 ui/dist
 build
+
+# go build 默认写到仓库根目录的可执行文件；Makefile/air 产物已由 build 覆盖
+/my-bulker
+/my-bulker.exe
