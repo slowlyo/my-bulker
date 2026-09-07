@@ -32,6 +32,7 @@ required = [
     ("服务端 ldflags 版本", r"appmeta\.Version"),
     ("静态检查 job", r"lint-workflow:"),
     ("桌面依赖服务端 job", r"needs:\s*\[build,\s*build-desktop\]"),
+    ("注入桌面版本脚本", r"scripts/inject-desktop-version\.py"),
 ]
 
 failed = False

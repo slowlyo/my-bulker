@@ -19,3 +19,7 @@ ui/dist
 /build/windows/*.syso
 /build/windows/icon.ico
 /build/darwin/*.icns
+
+# Python 缓存
+__pycache__/
+*.pyc

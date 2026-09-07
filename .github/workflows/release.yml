@@ -182,17 +182,7 @@ jobs:
         run: cd ui && APP_VERSION="${APP_VERSION}" pnpm build
 
       - name: Inject desktop product version
-        run: |
-          python3 - <<'PY'
-          import json, os, pathlib
-          version = os.environ["APP_VERSION"]
-          product = version[1:] if version.startswith("v") and len(version) > 1 and version[1].isdigit() else "0.0.0"
-          path = pathlib.Path("wails.json")
-          data = json.loads(path.read_text())
-          data.setdefault("info", {})["productVersion"] = product
-          path.write_text(json.dumps(data, indent=2, ensure_ascii=False) + "\n")
-          print(f"productVersion={product}")
-          PY
+        run: python3 ./scripts/inject-desktop-version.py
 
       - name: Build desktop app
         env:
