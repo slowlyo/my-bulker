@@ -11,7 +11,7 @@ export async function getInitialState(): Promise<{ name: string }> {
     return { name: "" };
 }
 
-// 渲染全局页脚信息，提供版权说明与开源项目跳转
+// 渲染全局页脚信息，提供版权说明、开源项目跳转与版本号展示
 const renderAppFooter = () => {
     return (
         <footer className="py-4 text-center text-xs text-slate-400 flex items-center justify-center gap-4 select-none">
@@ -31,6 +31,12 @@ const renderAppFooter = () => {
                 <GithubOutlined />
                 my-bulker
             </a>
+            <span className="text-slate-300">|</span>
+            <Tooltip title={`Version ${APP_VERSION}`} placement="top">
+                <span className="truncate max-w-[200px] cursor-default">
+                    Version {APP_VERSION}
+                </span>
+            </Tooltip>
         </footer>
     );
 };
@@ -71,31 +77,6 @@ export const layout = () => {
                     <span className="font-semibold text-sm text-slate-900 tracking-tight leading-tight whitespace-nowrap">
                         My Bulker
                     </span>
-                </div>
-            );
-        },
-        // 侧边栏底部展示版本号，保持顶部标题整洁且在折叠态优雅降级
-        menuFooterRender: (props?: any) => {
-            if (props?.collapsed) {
-                return (
-                    <div className="py-2.5 flex justify-center items-center select-none">
-                        <Tooltip title={`版本 ${APP_VERSION}`} placement="right">
-                            <span className="text-[10px] text-slate-400 font-mono px-1 py-0.5 rounded bg-slate-50 cursor-default">
-                                {APP_VERSION.split('-')[0]}
-                            </span>
-                        </Tooltip>
-                    </div>
-                );
-            }
-
-            return (
-                <div className="px-4 py-3 border-t border-slate-100 flex items-center justify-between text-xs text-slate-400 select-none">
-                    <span className="text-slate-400">版本</span>
-                    <Tooltip title={APP_VERSION} placement="top">
-                        <span className="text-[11px] px-1.5 py-0.5 rounded bg-slate-100 text-slate-600 font-mono leading-tight truncate max-w-[130px] cursor-default">
-                            {APP_VERSION}
-                        </span>
-                    </Tooltip>
                 </div>
             );
         },
