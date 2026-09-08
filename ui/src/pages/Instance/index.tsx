@@ -109,16 +109,14 @@ const InstancePage: React.FC = () => {
             dataIndex: 'version',
             ellipsis: true,
             hideInSearch: true,
-            // 数据库版本号使用紧凑代码微标呈现
+            // 数据库版本号采用标准 Tag 组件渲染，保证行高与字体垂直居中对齐
             render: (text) => {
+                // 未检测到版本时展示占位符
                 if (!text) {
                     return <span className="text-slate-300">-</span>;
                 }
-                return (
-                    <span className="font-mono text-xs px-2 py-0.5 rounded bg-slate-100 text-slate-700 border border-slate-200/60">
-                        {text}
-                    </span>
-                );
+                // 使用标准 Tag 组件呈现版本信息
+                return <Tag className="font-mono text-xs m-0">{text}</Tag>;
             },
         },
         {

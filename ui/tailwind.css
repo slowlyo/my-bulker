@@ -25,27 +25,68 @@
   }
 }
 
-/* 全局统一边框色变量：采用轻柔优雅的浅灰，彻底解决卡片偏深与各区域深浅不一致的问题 */
+/* 全局统一边框色变量：采用标准的中性灰（slate-200），对比度清晰柔和 */
 :root {
-  --app-border-color: #edf0f4;
+  --app-border-color: #e2e8f0;
+  --app-border-subtle: #edf0f4;
 }
 
-/* 增强侧边栏右侧分界线与微阴影，使导航区与背景形成清晰对比 */
+/* 侧边栏右侧分界线与阴影，保持适度对比与视觉舒适 */
 .ant-layout-sider,
 .ant-pro-sider,
 aside.ant-layout-sider {
   border-right: 1px solid #e2e8f0 !important;
-  box-shadow: 1px 0 3px 0 rgba(0, 0, 0, 0.03) !important;
+  box-shadow: 1px 0 2px 0 rgba(0, 0, 0, 0.03) !important;
 }
 
-/* 增强顶栏底部分割线与阴影，保持布局边界一致清晰 */
+/* 移除侧边栏底部操作按钮与折叠切换按钮 */
+.ant-pro-sider-collapsed-button,
+.ant-pro-sider-links,
+.ant-pro-sider-actions,
+.ant-pro-sider-footer {
+  display: none !important;
+}
+
+/* 顶栏与内容区域之间彻底移除所有底边框、顶边框与阴影 */
 .ant-layout-header,
-.ant-pro-global-header {
-  border-bottom: 1px solid #e2e8f0 !important;
-  box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.02) !important;
+.ant-pro-layout-header,
+.ant-pro-global-header,
+.ant-pro-fixed-header,
+.ant-pro-layout-header-fixed-header,
+.ant-pro-layout .ant-layout-header,
+.ant-pro-layout .ant-pro-layout-header,
+header.ant-layout-header {
+  border-bottom: none !important;
+  border-block-end: none !important;
+  box-shadow: none !important;
 }
 
-/* 统一全站所有卡片、CRUD表格、搜索栏及手写容器边框，实现完全同色同浅度 */
+.ant-layout-content,
+.ant-pro-page-container,
+.ant-pro-page-container-warp,
+.ant-page-header {
+  border-top: none !important;
+  border-block-start: none !important;
+}
+
+/* 页脚与内容区域之间彻底移除分割线与投影 */
+.ant-layout-footer,
+.ant-pro-layout-footer,
+footer {
+  border-top: none !important;
+  border-block-start: none !important;
+  border-bottom: none !important;
+  border-block-end: none !important;
+}
+
+/* 统一全站所有卡片、CRUD表格、搜索栏及主要容器外边框与舒适圆角 */
+.ant-card-bordered,
+.ant-pro-card,
+.ant-pro-card-bordered,
+.ant-pro-table-search {
+  border-radius: 12px !important;
+}
+
 .ant-card-bordered,
 .ant-pro-card,
 .ant-pro-card-bordered,
@@ -56,7 +97,7 @@ aside.ant-layout-sider {
   border-color: var(--app-border-color) !important;
 }
 
-/* 统一轻量内部分割线 */
+/* 统一内部次级分割线与轻量列表项线条 */
 .border-slate-100 {
-  border-color: #f6f8fa !important;
+  border-color: var(--app-border-subtle) !important;
 }

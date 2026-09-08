@@ -652,7 +652,7 @@ const CreateTaskForm: React.FC<CreateTaskFormProps> = ({
                         </div>
                     </div>
 
-                    <div className="p-3 bg-slate-50 rounded border border-slate-200/80">
+                    <div className="p-3 bg-slate-50 rounded border border-slate-200">
                         <div className="text-xs text-slate-500 mb-2 font-medium">下拉预览效果</div>
                         <div
                             className="px-3 py-1.5 rounded text-sm font-medium inline-flex items-center justify-between gap-3 max-w-full truncate shadow-xs"
@@ -723,7 +723,7 @@ const CreateTaskForm: React.FC<CreateTaskFormProps> = ({
                         </div>
                     </div>
 
-                    <div className="p-3 bg-slate-50 rounded border border-slate-200/80">
+                    <div className="p-3 bg-slate-50 rounded border border-slate-200">
                         <div className="text-xs text-slate-500 mb-2 font-medium">下拉预览效果</div>
                         <div
                             className="px-3 py-1.5 rounded text-sm font-medium inline-flex items-center justify-between gap-3 max-w-full truncate shadow-xs"

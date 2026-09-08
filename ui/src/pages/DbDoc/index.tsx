@@ -174,7 +174,7 @@ const DbDoc: React.FC = () => {
       },
       // 实例展示为中性灰徽标，避免使用明亮蓝色
       render: (_, record) => (
-        <span className="px-2 py-0.5 rounded text-xs bg-slate-100 text-slate-700 font-medium border border-slate-200/60">
+        <span className="px-2 py-0.5 rounded text-xs bg-slate-100 text-slate-700 font-medium border border-slate-200">
           {record.instance?.name || record.instance_id}
         </span>
       ),

@@ -9,19 +9,49 @@ export default defineConfig({
             token: {
                 // 保留 antd 经典科技蓝主题色，提供清爽的高亮与选中交互
                 colorPrimary: "#1677ff",
-                borderRadius: 6,
+                // 适度加大全局圆角尺寸，提升整体精致感与现代感
+                borderRadius: 8,
+                borderRadiusLG: 12,
+                borderRadiusSM: 6,
+                borderRadiusXS: 4,
                 colorBgContainer: "#ffffff",
-                colorBorder: "#edf0f4",
+                // 主边框采用标准中性灰 slate-200（#e2e8f0），清晰且不深重
+                colorBorder: "#e2e8f0",
+                // 次级边框与表格行线条采用更柔和的微灰
                 colorBorderSecondary: "#edf0f4",
-                colorSplit: "#f6f8fa",
+                // 内部分割线采用柔和微灰
+                colorSplit: "#edf0f4",
             },
             components: {
-                // 统一样式库内置 Card 与 Table 的柔和边框颜色
+                // 卡片内置边框与圆角设置
                 Card: {
-                    colorBorderSecondary: "#edf0f4",
+                    colorBorderSecondary: "#e2e8f0",
+                    borderRadiusLG: 12,
                 },
+                // 表格边框与圆角
                 Table: {
                     colorBorderSecondary: "#edf0f4",
+                    borderRadius: 8,
+                },
+                // 按钮圆角微调
+                Button: {
+                    borderRadius: 8,
+                    borderRadiusSM: 6,
+                },
+                // 输入框圆角微调
+                Input: {
+                    borderRadius: 8,
+                },
+                // 下拉选择器圆角
+                Select: {
+                    borderRadius: 8,
+                },
+                // 弹窗与抽屉容器圆角
+                Modal: {
+                    borderRadiusLG: 14,
+                },
+                Drawer: {
+                    borderRadiusLG: 14,
                 },
             },
         },

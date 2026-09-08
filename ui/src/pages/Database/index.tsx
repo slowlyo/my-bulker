@@ -73,7 +73,7 @@ const DatabasePage: React.FC = () => {
             },
             // 所属实例以紧凑浅灰徽标展示
             render: (_, record) => (
-                <span className="px-2 py-0.5 rounded text-xs bg-slate-100 text-slate-700 font-medium border border-slate-200/60">
+                <span className="px-2 py-0.5 rounded text-xs bg-slate-100 text-slate-700 font-medium border border-slate-200">
                     {record.instance?.name || '-'}
                 </span>
             ),
@@ -196,7 +196,7 @@ const DatabasePage: React.FC = () => {
                 ) : currentDatabase ? (
                     <div className="flex flex-col h-full justify-between">
                         <div className="space-y-4">
-                            <div className="p-3 bg-slate-50 rounded-lg border border-slate-200/80 flex items-center justify-between">
+                            <div className="p-3 bg-slate-50 rounded-lg border border-slate-200 flex items-center justify-between">
                                 <div className="flex items-center gap-2">
                                     <DatabaseOutlined className="text-slate-600 text-base" />
                                     <div>
