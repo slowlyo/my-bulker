@@ -12,12 +12,19 @@ interface TargetDatabasesProps {
     databases: string; // JSON字符串格式的数据库列表
 }
 
+/**
+ * 目标数据库展示面板，根据实例维度分组汇聚所有目标数据库列表。
+ * @param props 组件属性
+ */
 const TargetDatabases: React.FC<TargetDatabasesProps> = ({ databases }) => {
-    // 解析数据库JSON字符串
+    /**
+     * 解析传入的数据库 JSON 字符串为对象列表。
+     */
     const parseDatabases = (): TaskDatabase[] => {
         try {
             return JSON.parse(databases);
         } catch (error) {
+            // eslint-disable-next-line no-console
             console.error('解析数据库数据失败:', error);
             return [];
         }
@@ -25,6 +32,7 @@ const TargetDatabases: React.FC<TargetDatabasesProps> = ({ databases }) => {
 
     const databaseList = parseDatabases();
 
+    // 暂无关联数据库时的兜底空状态
     if (databaseList.length === 0) {
         return (
             <Card title="目标数据库">
@@ -35,8 +43,9 @@ const TargetDatabases: React.FC<TargetDatabasesProps> = ({ databases }) => {
         );
     }
 
-    // 按实例分组
+    // 按实例名称进行分组合并
     const groupedDatabases = databaseList.reduce((acc, db) => {
+        // 分组未初始化时先置空数组
         if (!acc[db.instance_name]) {
             acc[db.instance_name] = [];
         }
@@ -54,7 +63,7 @@ const TargetDatabases: React.FC<TargetDatabasesProps> = ({ databases }) => {
                     </span>
                 </Space>
             } 
-            size="small"
+            size="small" 
             style={{ height: '100%' }}
             styles={{ body: { padding: '12px', maxHeight: '185px', overflowY: 'auto' } }}
         >
@@ -78,7 +87,7 @@ const TargetDatabases: React.FC<TargetDatabasesProps> = ({ databases }) => {
                         </div>
                         <div style={{ flex: 1, display: 'flex', flexWrap: 'wrap', gap: '4px' }}>
                             {dbs.map(dbName => (
-                                <Tag key={dbName} style={{ margin: 0, border: '1px solid #e5e7eb', background: '#f9fafb', color: '#374151' }}>
+                                <Tag key={dbName} title={dbName} style={{ margin: 0, border: '1px solid #e5e7eb', background: '#f9fafb', color: '#374151' }}>
                                     <DatabaseOutlined style={{ marginRight: '4px', color: '#9ca3af' }} />
                                     {dbName}
                                 </Tag>

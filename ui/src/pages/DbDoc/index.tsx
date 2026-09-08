@@ -172,13 +172,19 @@ const DbDoc: React.FC = () => {
         options: instances,
         showSearch: true,
       },
-      render: (_, record) => <Tag color="blue">{record.instance?.name || record.instance_id}</Tag>
+      // 实例展示为中性灰徽标，避免使用明亮蓝色
+      render: (_, record) => (
+        <span className="px-2 py-0.5 rounded text-xs bg-slate-100 text-slate-700 font-medium border border-slate-200/60">
+          {record.instance?.name || record.instance_id}
+        </span>
+      ),
     },
     { 
       title: '数据库', 
       dataIndex: 'database',
       key: 'database',
       hideInSearch: true,
+      render: (text) => <span className="font-semibold text-slate-800 text-xs">{text}</span>,
     },
     { 
       title: '输出路径', 
@@ -187,18 +193,18 @@ const DbDoc: React.FC = () => {
       hideInSearch: true,
       render: (dom: React.ReactNode, record: DbDocTask) => {
         const text = record.output_path;
-        if (!text) return '-';
+        if (!text) return <span className="text-slate-300">-</span>;
         const paths = text.split(',').filter(p => p.trim());
         return (
-          <Space direction="vertical" size={0}>
+          <Space direction="vertical" size={2}>
             {paths.map((p, index) => (
-              <Typography.Text 
+              <span 
                 key={index}
-                style={{ maxWidth: 200 }} 
-                ellipsis={{ tooltip: p }}
+                className="font-mono text-xs text-slate-600 max-w-[220px] truncate block"
+                title={p}
               >
                 {p}
-              </Typography.Text>
+              </span>
             ))}
           </Space>
         );
@@ -209,7 +215,17 @@ const DbDoc: React.FC = () => {
       dataIndex: 'sync_interval', 
       key: 'sync_interval',
       hideInSearch: true,
-      render: (_, record) => formatFrequency(record.sync_interval)
+      // 渲染频率格式化微标
+      render: (_, record) => {
+        if (!record.sync_interval) {
+          return <span className="text-slate-400 text-xs">仅手动</span>;
+        }
+        return (
+          <span className="inline-flex items-center px-2 py-0.5 rounded text-xs bg-slate-100 text-slate-700 font-medium">
+            {formatFrequency(record.sync_interval)}
+          </span>
+        );
+      }
     },
     { 
       title: '状态', 
@@ -239,10 +255,10 @@ const DbDoc: React.FC = () => {
           <Text type="secondary" style={{ fontSize: '12px' }}>
             {record.last_run_at ? dayjs(record.last_run_at).format('YYYY-MM-DD HH:mm:ss') : '从未使用'}
           </Text>
-          {record.last_status === 1 && <CheckCircleOutlined style={{ color: '#52c41a' }} />}
+          {record.last_status === 1 && <CheckCircleOutlined style={{ color: '#10b981' }} />}
           {record.last_status === 2 && (
             <Popconfirm title={record.last_error} showCancel={false}>
-              <CloseCircleOutlined style={{ color: '#ff4d4f', cursor: 'pointer' }} />
+              <CloseCircleOutlined style={{ color: '#ef4444', cursor: 'pointer' }} />
             </Popconfirm>
           )}
         </Space>
@@ -252,32 +268,55 @@ const DbDoc: React.FC = () => {
       title: '操作',
       key: 'action',
       valueType: 'option',
-      width: 220,
+      width: 180,
       fixed: 'right',
       render: (_, record) => [
         <Button 
           key="run" 
-          type="link" 
+          type="text" 
           size="small" 
-          icon={<PlayCircleOutlined />} 
+          icon={<PlayCircleOutlined className="text-slate-500" />} 
           loading={runningTasks[record.id]}
+          className="!text-slate-700 hover:!text-slate-900 hover:!bg-slate-100 !px-2 !h-7 !text-xs !rounded-md"
           onClick={() => handleRun(record.id)}
         >
           运行
         </Button>,
-        <Button key="edit" type="link" size="small" icon={<EditOutlined />} onClick={() => {
-          setEditingId(record.id);
-          const paths = record.output_path ? record.output_path.split(',') : [''];
-          form.setFieldsValue({
-            ...record,
-            output_paths: paths,
-            database_name: record.database,
-          });
-          fetchDatabases(record.instance_id);
-          setModalVisible(true);
-        }}>编辑</Button>,
-        <Popconfirm key="delete" title="确定删除吗？" onConfirm={() => handleDelete(record.id)}>
-          <Button type="link" size="small" danger icon={<DeleteOutlined />}>删除</Button>
+        <Button
+          key="edit"
+          type="text"
+          size="small"
+          icon={<EditOutlined className="text-slate-500" />}
+          className="!text-slate-700 hover:!text-slate-900 hover:!bg-slate-100 !px-2 !h-7 !text-xs !rounded-md"
+          onClick={() => {
+            setEditingId(record.id);
+            const paths = record.output_path ? record.output_path.split(',') : [''];
+            form.setFieldsValue({
+              ...record,
+              output_paths: paths,
+              database_name: record.database,
+            });
+            fetchDatabases(record.instance_id);
+            setModalVisible(true);
+          }}
+        >
+          编辑
+        </Button>,
+        <Popconfirm
+          key="delete"
+          title="确定删除这个文档任务吗？"
+          description="删除后无法恢复，请谨慎操作。"
+          onConfirm={() => handleDelete(record.id)}
+        >
+          <Button
+            type="text"
+            size="small"
+            danger
+            icon={<DeleteOutlined />}
+            className="!px-2 !h-7 !text-xs !rounded-md"
+          >
+            删除
+          </Button>
         </Popconfirm>,
       ],
     },
@@ -286,6 +325,7 @@ const DbDoc: React.FC = () => {
   return (
     <PageContainer ghost>
       <ProTable<DbDocTask>
+        cardBordered
         actionRef={actionRef}
         rowKey="id"
         scroll={{ x: 'max-content' }}
@@ -298,8 +338,9 @@ const DbDoc: React.FC = () => {
             icon={<RocketOutlined />}
             disabled={selectedRowKeys.length === 0}
             onClick={handleBatchRun}
+            className="!rounded-md !text-xs !h-8"
           >
-            批量运行
+            {selectedRowKeys.length > 0 ? `批量运行 (${selectedRowKeys.length})` : '批量运行'}
           </Button>,
           <Button 
             key="create" 
@@ -310,6 +351,7 @@ const DbDoc: React.FC = () => {
               form.resetFields();
               setModalVisible(true);
             }}
+            className="!rounded-md !text-xs !h-8 shadow-xs"
           >
             创建任务
           </Button>,

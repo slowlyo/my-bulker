@@ -7,8 +7,22 @@ export default defineConfig({
         configProvider: {},
         theme: {
             token: {
+                // 保留 antd 经典科技蓝主题色，提供清爽的高亮与选中交互
                 colorPrimary: "#1677ff",
-                borderRadius: 8,
+                borderRadius: 6,
+                colorBgContainer: "#ffffff",
+                colorBorder: "#edf0f4",
+                colorBorderSecondary: "#edf0f4",
+                colorSplit: "#f6f8fa",
+            },
+            components: {
+                // 统一样式库内置 Card 与 Table 的柔和边框颜色
+                Card: {
+                    colorBorderSecondary: "#edf0f4",
+                },
+                Table: {
+                    colorBorderSecondary: "#edf0f4",
+                },
             },
         },
     },

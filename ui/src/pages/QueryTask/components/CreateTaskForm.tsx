@@ -1,12 +1,20 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { Form, Input, Select, Button, Space, Radio, Alert, Modal, message, Row, Col, Card } from 'antd';
+import { Form, Input, Select, Button, Space, Radio, Alert, Modal, message, Row, Col, Card, ColorPicker, Checkbox, Tooltip } from 'antd';
 import { CreateQueryTaskRequest } from '@/services/queryTask/typings';
 import { getInstanceOptions } from '@/services/instance/InstanceController';
 import DatabaseSelector from './DatabaseSelector';
 import SQLEditor from './SQLEditor';
 import { validateSQL } from '@/services/queryTask/QueryTaskController';
-import { QueryTaskTemplate, getQueryTaskTemplates, saveQueryTaskTemplate, deleteQueryTaskTemplate } from '@/utils/queryTaskTemplate';
-import { DeleteOutlined } from '@ant-design/icons';
+import {
+    QueryTaskTemplate,
+    getQueryTaskTemplates,
+    saveQueryTaskTemplate,
+    updateQueryTaskTemplate,
+    deleteQueryTaskTemplate,
+    DEFAULT_TEMPLATE_COLORS,
+    getContrastTextColor,
+} from '@/utils/queryTaskTemplate';
+import { DeleteOutlined, EditOutlined, ReloadOutlined, ClearOutlined, PlayCircleOutlined } from '@ant-design/icons';
 
 const { Option } = Select;
 
@@ -40,8 +48,17 @@ const CreateTaskForm: React.FC<CreateTaskFormProps> = ({
     const [databaseMode, setDatabaseMode] = useState<'include' | 'exclude'>('include');
     const [templates, setTemplates] = useState<QueryTaskTemplate[]>([]);
     const [selectedTemplate, setSelectedTemplate] = useState<string | undefined>(undefined);
+
+    // 新建模态框相关状态
     const [isSaveModalVisible, setIsSaveModalVisible] = useState(false);
     const [newTemplateName, setNewTemplateName] = useState('');
+    const [newTemplateColor, setNewTemplateColor] = useState<string>(DEFAULT_TEMPLATE_COLORS[0]);
+
+    // 修改模态框相关状态
+    const [isEditModalVisible, setIsEditModalVisible] = useState(false);
+    const [editingTemplateName, setEditingTemplateName] = useState('');
+    const [editingTemplateColor, setEditingTemplateColor] = useState<string>(DEFAULT_TEMPLATE_COLORS[0]);
+    const [syncCurrentFormValues, setSyncCurrentFormValues] = useState<boolean>(true);
 
     /**
      * 重置表单，保证快速开启下一次查询配置。
@@ -165,17 +182,20 @@ const CreateTaskForm: React.FC<CreateTaskFormProps> = ({
         const values = form.getFieldsValue(['instance_ids', 'database_mode', 'selected_dbs', 'sql_content']);
         const hasSQL = Boolean(String(values.sql_content || '').trim());
         const hasInstances = Array.isArray(values.instance_ids) && values.instance_ids.length > 0;
+        // 未配置关键查询要素时予以拦截
         if (!hasSQL && !hasInstances) {
             message.warning('请至少填写 SQL 内容或选择实例后再保存模板');
             return;
         }
         setNewTemplateName('');
+        setNewTemplateColor(DEFAULT_TEMPLATE_COLORS[0]);
         setIsSaveModalVisible(true);
     };
 
-    // 保存模板并刷新模板列表。
+    // 保存新建模板并将其加入模板列表。
     const handleSaveTemplate = () => {
         const templateName = newTemplateName.trim();
+        // 模板名称必填校验
         if (!templateName) {
             message.error('模板名称不能为空');
             return;
@@ -184,6 +204,7 @@ const CreateTaskForm: React.FC<CreateTaskFormProps> = ({
         const newTemplate: QueryTaskTemplate = {
             name: templateName,
             createdAt: new Date().toISOString(),
+            color: newTemplateColor,
             values: valuesToSave,
         };
         const newTemplates = saveQueryTaskTemplate(newTemplate);
@@ -191,6 +212,74 @@ const CreateTaskForm: React.FC<CreateTaskFormProps> = ({
         setSelectedTemplate(newTemplate.name);
         setIsSaveModalVisible(false);
         message.success(`模板 "${templateName}" 已保存`);
+    };
+
+    // 打开编辑模板弹窗，并回填当前选中模板的名称、颜色和同步选项。
+    const handleShowEditModal = () => {
+        // 未选中任何模板时无需处理
+        if (!selectedTemplate) {
+            return;
+        }
+
+        const currentTemplate = templates.find(t => t.name === selectedTemplate);
+        // 未找到对应的模板缓存数据时提示错误
+        if (!currentTemplate) {
+            message.error('未找到对应模板数据');
+            return;
+        }
+
+        setEditingTemplateName(currentTemplate.name);
+        setEditingTemplateColor(currentTemplate.color || DEFAULT_TEMPLATE_COLORS[0]);
+        setSyncCurrentFormValues(true);
+        setIsEditModalVisible(true);
+    };
+
+    // 提交模板修改，支持更新名称、背景色以及可选择性覆盖查询配置。
+    const handleUpdateTemplate = () => {
+        // 未选中模板时直接返回
+        if (!selectedTemplate) {
+            return;
+        }
+
+        const templateName = editingTemplateName.trim();
+        // 校验修改后的模板名称非空
+        if (!templateName) {
+            message.error('模板名称不能为空');
+            return;
+        }
+
+        const targetTemplate = templates.find(t => t.name === selectedTemplate);
+        // 模板丢失时的安全兜底
+        if (!targetTemplate) {
+            message.error('原模板不存在');
+            return;
+        }
+
+        // 根据开关决定覆盖当前表单配置还是保留模板已有配置
+        const valuesToSave = syncCurrentFormValues
+            ? form.getFieldsValue(['instance_ids', 'database_mode', 'selected_dbs', 'sql_content'])
+            : targetTemplate.values;
+
+        const updatedTemplate: QueryTaskTemplate = {
+            name: templateName,
+            createdAt: targetTemplate.createdAt,
+            color: editingTemplateColor,
+            values: valuesToSave,
+        };
+
+        try {
+            const newTemplates = updateQueryTaskTemplate(selectedTemplate, updatedTemplate);
+            setTemplates(newTemplates);
+            // 修改成功后选中项同步更新为新模板名
+            setSelectedTemplate(updatedTemplate.name);
+            setIsEditModalVisible(false);
+            message.success(`模板 "${templateName}" 已修改`);
+        } catch (error: any) {
+            // eslint-disable-next-line no-console
+            console.error('更新模板失败:', error);
+            // 捕获重名等校验异常并友好提示
+            message.error(error?.message || '更新模板失败');
+        }
     };
 
     // 删除当前模板，避免历史模板堆积造成干扰。
@@ -215,6 +304,65 @@ const CreateTaskForm: React.FC<CreateTaskFormProps> = ({
     };
 
     const modeDesc = getModeDescription();
+    const currentSelectedTemplate = templates.find(t => t.name === selectedTemplate);
+
+    // 实时监听关键表单字段，驱动底部执行范围摘要的动态响应
+    const watchedInstanceIds = Form.useWatch('instance_ids', form) || [];
+    const watchedSelectedDbs = Form.useWatch('selected_dbs', form) || [];
+    const watchedMode = Form.useWatch('database_mode', form) || 'include';
+
+    // 生成模板下拉选项，配置背景色和高对比度文本样式
+    const templateOptions = templates.map(t => ({
+        value: t.name,
+        label: t.name,
+        color: t.color,
+        style: t.color
+            ? {
+                  backgroundColor: t.color,
+                  color: getContrastTextColor(t.color),
+                  borderRadius: '4px',
+                  margin: '2px 0',
+              }
+            : {
+                  borderRadius: '4px',
+                  margin: '2px 0',
+              },
+    }));
+
+    /**
+     * 重新生成默认的任务名称，便于用户快速切换为最新时间戳。
+     */
+    const handleRefreshTaskName = () => {
+        form.setFieldValue('task_name', generateDefaultTaskName());
+        message.success('已刷新任务名称');
+    };
+
+    /**
+     * 快捷清空当前 SQL 编辑器内容。
+     */
+    const handleClearSQL = () => {
+        form.setFieldValue('sql_content', '');
+    };
+
+    /**
+     * 获取当前执行范围的实时统计文案，在提交前给用户直观预期。
+     */
+    const getExecutionSummaryText = () => {
+        const instanceCount = Array.isArray(watchedInstanceIds) ? watchedInstanceIds.length : 0;
+        const dbCount = Array.isArray(watchedSelectedDbs) ? watchedSelectedDbs.length : 0;
+
+        // 未选择任何实例时提示配置前置项
+        if (instanceCount === 0) {
+            return '未指定执行实例';
+        }
+
+        // 包含模式提示精准覆盖的库数量
+        if (watchedMode === 'include') {
+            return `覆盖 ${instanceCount} 个实例中的 ${dbCount} 个数据库`;
+        }
+        // 排除模式提示全量并标明排除的库数量
+        return `覆盖 ${instanceCount} 个实例的所有库（排除 ${dbCount} 个）`;
+    };
 
     return (
         <>
@@ -222,39 +370,92 @@ const CreateTaskForm: React.FC<CreateTaskFormProps> = ({
                 form={form}
                 layout="vertical"
             >
-                <Space direction="vertical" size={24} style={{ display: 'flex', width: '100%' }}>
-                    {/* 顶部部分：基础配置，横向铺开 */}
-                    <Card
-                        title="基础任务配置"
-                        bordered={false}
-                        styles={{ header: { fontWeight: 'bold' }, body: { paddingBottom: 0 } }}
-                    >
-                        <Row gutter={24}>
-                            <Col xs={24} md={8}>
-                                <Form.Item label="查询模板">
-                                    <Space.Compact style={{ width: '100%' }}>
-                                        <Select
-                                            placeholder="从模板加载"
-                                            value={selectedTemplate}
-                                            onChange={(value) => handleTemplateSelect(value)}
-                                            allowClear
-                                            showSearch
-                                            filterOption={(input, option) =>
-                                                (option?.label ?? '').toLowerCase().includes(input.toLowerCase())
-                                            }
-                                            options={templates.map(t => ({ value: t.name, label: t.name }))}
-                                        />
-                                        <Button onClick={handleShowSaveModal}>保存</Button>
-                                        <Button
-                                            icon={<DeleteOutlined />}
-                                            danger
-                                            disabled={!selectedTemplate}
-                                            onClick={handleDeleteTemplate}
-                                        />
-                                    </Space.Compact>
-                                </Form.Item>
-                            </Col>
-                            <Col xs={24} md={8}>
+                <div className="flex flex-col gap-4 w-full">
+                    {/* 顶部全局模板预设工具条 */}
+                    <div className="bg-white p-3.5 px-4 rounded-lg border border-slate-200 shadow-xs flex flex-wrap items-center justify-between gap-3">
+                        <div className="flex items-center gap-3 flex-1 min-w-[280px]">
+                            <span className="text-xs font-semibold text-slate-500 shrink-0">
+                                查询模板
+                            </span>
+                            <div className="w-64 max-w-full">
+                                <Select
+                                    placeholder="从模板加载配置"
+                                    value={selectedTemplate}
+                                    onChange={(value) => handleTemplateSelect(value)}
+                                    allowClear
+                                    showSearch
+                                    style={{ width: '100%' }}
+                                    filterOption={(input, option) =>
+                                        (option?.label ?? '').toLowerCase().includes(input.toLowerCase())
+                                    }
+                                    options={templateOptions}
+                                    optionRender={(option) => {
+                                        const itemColor = option.data.color;
+                                        const textColor = getContrastTextColor(itemColor);
+                                        return (
+                                            <div
+                                                className="w-full flex items-center justify-between px-1.5 py-0.5"
+                                                style={{ color: textColor }}
+                                            >
+                                                <span className="truncate font-medium">{option.data.label}</span>
+                                                {itemColor && (
+                                                    <span
+                                                        className="w-2.5 h-2.5 rounded-full border border-black/10 shrink-0 ml-2"
+                                                        style={{ backgroundColor: itemColor }}
+                                                    />
+                                                )}
+                                            </div>
+                                        );
+                                    }}
+                                    styles={
+                                        currentSelectedTemplate?.color
+                                            ? {
+                                                  selector: {
+                                                      backgroundColor: currentSelectedTemplate.color,
+                                                      color: getContrastTextColor(currentSelectedTemplate.color),
+                                                  },
+                                              }
+                                            : undefined
+                                    }
+                                />
+                            </div>
+                            {selectedTemplate && (
+                                <span className="text-xs text-slate-400 hidden sm:inline">
+                                    当前已载入: <span className="font-medium text-slate-600">{selectedTemplate}</span>
+                                </span>
+                            )}
+                        </div>
+
+                        <div className="flex items-center gap-2">
+                            <Button onClick={handleShowSaveModal}>
+                                存为新模板
+                            </Button>
+                            <Button
+                                icon={<EditOutlined />}
+                                disabled={!selectedTemplate}
+                                onClick={handleShowEditModal}
+                            >
+                                修改模板
+                            </Button>
+                            <Button
+                                icon={<DeleteOutlined />}
+                                danger
+                                disabled={!selectedTemplate}
+                                onClick={handleDeleteTemplate}
+                            />
+                        </div>
+                    </div>
+
+                    {/* 主体工作台双栏布局 */}
+                    <Row gutter={16} align="stretch">
+                        {/* 左侧：任务基础信息与执行目标范围 */}
+                        <Col xs={24} lg={10} xl={9}>
+                            <Card
+                                title="任务与执行目标"
+                                bordered={false}
+                                styles={{ header: { fontWeight: 600, borderBottom: '1px solid #f1f5f9' }, body: { padding: '20px' } }}
+                                className="border border-slate-200 rounded-lg shadow-xs h-full"
+                            >
                                 <Form.Item
                                     name="task_name"
                                     label="任务名称"
@@ -263,10 +464,22 @@ const CreateTaskForm: React.FC<CreateTaskFormProps> = ({
                                         { max: 100, message: '不能超过100个字符' },
                                     ]}
                                 >
-                                    <Input placeholder="请输入任务名称" allowClear />
+                                    <Input
+                                        placeholder="请输入任务名称"
+                                        allowClear
+                                        suffix={
+                                            <Tooltip title="重新生成当前时间戳名称">
+                                                <Button
+                                                    type="text"
+                                                    size="small"
+                                                    icon={<ReloadOutlined className="text-neutral-400 hover:text-neutral-700" />}
+                                                    onClick={handleRefreshTaskName}
+                                                />
+                                            </Tooltip>
+                                        }
+                                    />
                                 </Form.Item>
-                            </Col>
-                            <Col xs={24} md={8}>
+
                                 <Form.Item
                                     name="description"
                                     label="任务描述"
@@ -274,29 +487,24 @@ const CreateTaskForm: React.FC<CreateTaskFormProps> = ({
                                         { max: 500, message: '不能超过500个字符' },
                                     ]}
                                 >
-                                    <Input placeholder="请输入描述（可选）" allowClear maxLength={500} />
+                                    <Input.TextArea
+                                        placeholder="请输入描述说明（可选）"
+                                        allowClear
+                                        maxLength={500}
+                                        autoSize={{ minRows: 2, maxRows: 3 }}
+                                    />
                                 </Form.Item>
-                            </Col>
-                        </Row>
-                    </Card>
 
-                    <Row gutter={24} align="stretch">
-                        {/* 左边：展示范围选择 */}
-                        <Col xs={24} xl={10}>
-                            <Card
-                                title="设置执行范围"
-                                bordered={false}
-                                styles={{ header: { fontWeight: 'bold' }, body: { height: '100%' } }}
-                                style={{ height: '100%' }}
-                            >
+                                <div className="h-px bg-neutral-100 my-4" />
+
                                 <Form.Item
                                     name="instance_ids"
-                                    label="选择实例"
+                                    label="选择目标实例"
                                     rules={[{ required: true, message: '请选择实例' }]}
                                 >
                                     <Select
                                         mode="multiple"
-                                        placeholder="请选择实例"
+                                        placeholder="请选择目标实例"
                                         onChange={handleInstanceChange}
                                         showSearch
                                         allowClear
@@ -323,8 +531,8 @@ const CreateTaskForm: React.FC<CreateTaskFormProps> = ({
                                         buttonStyle="solid"
                                         onChange={(e) => handleDatabaseModeChange(e.target.value)}
                                     >
-                                        <Radio value="include">包含</Radio>
-                                        <Radio value="exclude">排除</Radio>
+                                        <Radio value="include">包含模式</Radio>
+                                        <Radio value="exclude">排除模式</Radio>
                                     </Radio.Group>
                                 </Form.Item>
 
@@ -332,7 +540,7 @@ const CreateTaskForm: React.FC<CreateTaskFormProps> = ({
                                     message={modeDesc.message}
                                     type={modeDesc.type}
                                     showIcon
-                                    style={{ marginBottom: 16 }}
+                                    className="mb-4 text-xs"
                                 />
 
                                 <Form.Item
@@ -349,59 +557,190 @@ const CreateTaskForm: React.FC<CreateTaskFormProps> = ({
                             </Card>
                         </Col>
 
-                        {/* 右边：SQL输入区及操作按钮 */}
-                        <Col xs={24} xl={14}>
-                            <Space direction="vertical" size={24} style={{ display: 'flex', width: '100%', height: '100%' }}>
-                                <Card
-                                    title="SQL 查询"
-                                    bordered={false}
-                                    styles={{ header: { fontWeight: 'bold' } }}
-                                >
-                                    <Form.Item
-                                        name="sql_content"
-                                        rules={[
-                                            { required: true, message: '请输入SQL语句' },
-                                            { min: 1, message: 'SQL语句不能为空' },
-                                        ]}
-                                        style={{ marginBottom: 0 }}
+                        {/* 右侧：一体化 SQL 查询与提交中心 */}
+                        <Col xs={24} lg={14} xl={15}>
+                            <Card
+                                title="SQL 查询语句"
+                                bordered={false}
+                                styles={{ header: { fontWeight: 600, borderBottom: '1px solid #f1f5f9' }, body: { padding: '20px', display: 'flex', flexDirection: 'column', height: 'calc(100% - 56px)' } }}
+                                className="border border-slate-200 rounded-lg shadow-xs h-full"
+                                extra={
+                                    <Button
+                                        type="text"
+                                        size="small"
+                                        icon={<ClearOutlined />}
+                                        onClick={handleClearSQL}
+                                        className="text-slate-400 hover:text-slate-700 text-xs"
                                     >
-                                        <SQLEditor height={320} />
-                                    </Form.Item>
-                                </Card>
+                                        清空
+                                    </Button>
+                                }
+                            >
+                                <Form.Item
+                                    name="sql_content"
+                                    rules={[
+                                        { required: true, message: '请输入SQL语句' },
+                                        { min: 1, message: 'SQL语句不能为空' },
+                                    ]}
+                                    className="mb-4 flex-1"
+                                >
+                                    <SQLEditor height={420} />
+                                </Form.Item>
 
-                                <Card bordered={false}>
-                                    <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 16 }}>
+                                {/* 底部操作栏：与工作台融合，告别割裂的独立卡片 */}
+                                <div className="pt-4 border-t border-slate-100 flex flex-wrap items-center justify-between gap-3 mt-auto">
+                                    <div className="flex items-center gap-2 text-xs text-slate-500">
+                                        <span className={`w-2 h-2 rounded-full ${watchedInstanceIds.length > 0 ? 'bg-emerald-500' : 'bg-slate-300'}`} />
+                                        <span>{getExecutionSummaryText()}</span>
+                                    </div>
+                                    <div className="flex items-center gap-3">
                                         <Button onClick={resetFormToDefault}>
-                                            重置所有配置
+                                            重置配置
                                         </Button>
                                         <Button
                                             type="primary"
+                                            icon={<PlayCircleOutlined />}
                                             onClick={handleSubmit}
                                             loading={loading}
                                         >
-                                            创建任务并查看详情
+                                            立即执行
                                         </Button>
                                     </div>
-                                </Card>
-                            </Space>
+                                </div>
+                            </Card>
                         </Col>
                     </Row>
-                </Space>
+                </div>
             </Form>
 
+            {/* 新建模板弹窗 */}
             <Modal
-                title="保存为模板"
+                title="保存为新模板"
                 open={isSaveModalVisible}
                 onOk={handleSaveTemplate}
                 onCancel={() => setIsSaveModalVisible(false)}
                 okText="保存"
                 cancelText="取消"
+                destroyOnClose
             >
-                <Input
-                    placeholder="请输入模板名称"
-                    value={newTemplateName}
-                    onChange={(e) => setNewTemplateName(e.target.value)}
-                />
+                <div className="flex flex-col gap-4 py-2">
+                    <div>
+                        <div className="text-sm font-medium mb-1.5 text-slate-700">模板名称</div>
+                        <Input
+                            placeholder="请输入模板名称"
+                            value={newTemplateName}
+                            onChange={(e) => setNewTemplateName(e.target.value)}
+                            maxLength={50}
+                            allowClear
+                        />
+                    </div>
+
+                    <div>
+                        <div className="text-sm font-medium mb-1.5 text-slate-700">模板颜色</div>
+                        <div className="flex items-center gap-3">
+                            <ColorPicker
+                                value={newTemplateColor}
+                                onChange={(color) => setNewTemplateColor(color.toHexString())}
+                                presets={[
+                                    {
+                                        label: '预设背景色',
+                                        colors: DEFAULT_TEMPLATE_COLORS,
+                                    },
+                                ]}
+                            />
+                            <span className="text-xs text-slate-500 font-mono">{newTemplateColor}</span>
+                        </div>
+                    </div>
+
+                    <div className="p-3 bg-slate-50 rounded border border-slate-200/80">
+                        <div className="text-xs text-slate-500 mb-2 font-medium">下拉预览效果</div>
+                        <div
+                            className="px-3 py-1.5 rounded text-sm font-medium inline-flex items-center justify-between gap-3 max-w-full truncate shadow-xs"
+                            style={{
+                                backgroundColor: newTemplateColor,
+                                color: getContrastTextColor(newTemplateColor),
+                                border: '1px solid rgba(0, 0, 0, 0.06)',
+                            }}
+                        >
+                            <span className="truncate">{newTemplateName.trim() || '模板名称'}</span>
+                            <span
+                                className="w-2.5 h-2.5 rounded-full border border-black/10 shrink-0"
+                                style={{ backgroundColor: newTemplateColor }}
+                            />
+                        </div>
+                    </div>
+                </div>
+            </Modal>
+
+            {/* 修改模板弹窗 */}
+            <Modal
+                title="修改模板"
+                open={isEditModalVisible}
+                onOk={handleUpdateTemplate}
+                onCancel={() => setIsEditModalVisible(false)}
+                okText="保存修改"
+                cancelText="取消"
+                destroyOnClose
+            >
+                <div className="flex flex-col gap-4 py-2">
+                    <div>
+                        <div className="text-sm font-medium mb-1.5 text-slate-700">模板名称</div>
+                        <Input
+                            placeholder="请输入模板名称"
+                            value={editingTemplateName}
+                            onChange={(e) => setEditingTemplateName(e.target.value)}
+                            maxLength={50}
+                            allowClear
+                        />
+                    </div>
+
+                    <div>
+                        <div className="text-sm font-medium mb-1.5 text-slate-700">模板颜色</div>
+                        <div className="flex items-center gap-3">
+                            <ColorPicker
+                                value={editingTemplateColor}
+                                onChange={(color) => setEditingTemplateColor(color.toHexString())}
+                                presets={[
+                                    {
+                                        label: '预设背景色',
+                                        colors: DEFAULT_TEMPLATE_COLORS,
+                                    },
+                                ]}
+                            />
+                            <span className="text-xs text-slate-500 font-mono">{editingTemplateColor}</span>
+                        </div>
+                    </div>
+
+                    <div>
+                        <Checkbox
+                            checked={syncCurrentFormValues}
+                            onChange={(e) => setSyncCurrentFormValues(e.target.checked)}
+                        >
+                            同步使用当前表单配置覆盖模板内容
+                        </Checkbox>
+                        <div className="text-xs text-slate-400 mt-1 pl-6">
+                            勾选后，当前表单中的 SQL 和数据库选择也将同步更新到该模板中
+                        </div>
+                    </div>
+
+                    <div className="p-3 bg-slate-50 rounded border border-slate-200/80">
+                        <div className="text-xs text-slate-500 mb-2 font-medium">下拉预览效果</div>
+                        <div
+                            className="px-3 py-1.5 rounded text-sm font-medium inline-flex items-center justify-between gap-3 max-w-full truncate shadow-xs"
+                            style={{
+                                backgroundColor: editingTemplateColor,
+                                color: getContrastTextColor(editingTemplateColor),
+                                border: '1px solid rgba(0, 0, 0, 0.06)',
+                            }}
+                        >
+                            <span className="truncate">{editingTemplateName.trim() || '模板名称'}</span>
+                            <span
+                                className="w-2.5 h-2.5 rounded-full border border-black/10 shrink-0"
+                                style={{ backgroundColor: editingTemplateColor }}
+                            />
+                        </div>
+                    </div>
+                </div>
             </Modal>
         </>
     );

@@ -134,10 +134,16 @@ const QueryTaskPage: React.FC = () => {
             title: '任务名称',
             dataIndex: 'task_name',
             width: 280,
+            // 任务名称与辅助描述纵向排布
             render: (_, record) => (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                    <span style={{ fontWeight: 500, color: '#1f2937', fontSize: '14px' }}>{record.task_name}</span>
-                    <span style={{ fontSize: '12px', color: '#6b7280', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                <div className="flex flex-col gap-0.5">
+                    <span
+                        className="font-semibold text-slate-800 text-sm hover:text-slate-900 cursor-pointer"
+                        onClick={() => handleViewDetail(record)}
+                    >
+                        {record.task_name}
+                    </span>
+                    <span className="text-xs text-slate-400 truncate max-w-xs">
                         {record.description || '暂无任务描述'}
                     </span>
                 </div>
@@ -154,38 +160,81 @@ const QueryTaskPage: React.FC = () => {
                 2: { text: '已完成', status: 'Success' },
                 3: { text: '失败', status: 'Error' },
             },
+            // 自定义状态徽章展示，避免原版刺眼蓝色
+            render: (_, record) => {
+                // 待执行状态徽标
+                if (record.status === 0) {
+                    return (
+                        <span className="inline-flex items-center px-2 py-0.5 rounded text-xs bg-slate-100 text-slate-600 font-medium">
+                            待执行
+                        </span>
+                    );
+                }
+                // 执行中状态徽标，采用科技蓝徽标高亮
+                if (record.status === 1) {
+                    return (
+                        <span className="inline-flex items-center px-2 py-0.5 rounded text-xs bg-blue-50 text-blue-600 border border-blue-200/60 font-medium">
+                            执行中
+                        </span>
+                    );
+                }
+                // 已完成状态徽标
+                if (record.status === 2) {
+                    return (
+                        <span className="inline-flex items-center px-2 py-0.5 rounded text-xs bg-emerald-50 text-emerald-700 border border-emerald-200/60 font-medium">
+                            已完成
+                        </span>
+                    );
+                }
+                // 失败状态徽标
+                return (
+                    <span className="inline-flex items-center px-2 py-0.5 rounded text-xs bg-red-50 text-red-700 border border-red-200/60 font-medium">
+                        失败
+                    </span>
+                );
+            },
         },
         {
             title: '执行进度',
             dataIndex: 'progress',
             width: 260,
             search: false,
+            // 渲染执行进度分段条与结果统计
             render: (_, record) => {
                 const hasFailure = record.failed_dbs > 0 || record.failed_sqls > 0;
                 const pendingDbs = record.total_dbs - record.completed_dbs - record.failed_dbs;
                 const allSuccess = !hasFailure && pendingDbs === 0;
 
                 return (
-                    <div style={{ width: '100%', paddingRight: 24, margin: '8px 0' }}>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, marginBottom: 4 }}>
-                            <span style={{ color: '#4b5563' }}>数据库 ({record.completed_dbs}/{record.total_dbs})</span>
-                            <span style={{ color: '#4b5563' }}>SQL ({record.completed_sqls}/{record.total_sqls})</span>
+                    <div className="w-full pr-6 my-2">
+                        <div className="flex justify-between text-xs mb-1 font-mono">
+                            <span className="text-slate-600">数据库 ({record.completed_dbs}/{record.total_dbs})</span>
+                            <span className="text-slate-600">SQL ({record.completed_sqls}/{record.total_sqls})</span>
                         </div>
-                        {/* 分段进度条：蓝色完成 / 红色失败 / 灰色待执行 */}
-                        <div style={{ display: 'flex', height: 6, borderRadius: 3, overflow: 'hidden', background: '#e5e7eb' }}>
-                            <div style={{ flex: record.completed_dbs, background: allSuccess ? '#52c41a' : '#1890ff' }} />
-                            {hasFailure && <div style={{ flex: record.failed_dbs, background: '#ff4d4f' }} />}
-                            {pendingDbs > 0 && <div style={{ flex: pendingDbs, background: '#e5e7eb' }} />}
+                        {/* 分段进度条：科技蓝进行 / 绿色全部完成 / 红色失败 / 浅灰待执行 */}
+                        <div className="flex h-1.5 rounded-full overflow-hidden bg-slate-100">
+                            <div
+                                style={{
+                                    flex: record.completed_dbs,
+                                    background: allSuccess ? '#10b981' : '#1677ff',
+                                }}
+                            />
+                            {hasFailure ? (
+                                <div style={{ flex: record.failed_dbs, background: '#ef4444' }} />
+                            ) : null}
+                            {pendingDbs > 0 ? (
+                                <div style={{ flex: pendingDbs, background: '#e2e8f0' }} />
+                            ) : null}
                         </div>
                         {hasFailure ? (
-                            <div style={{ fontSize: 12, color: '#ef4444', marginTop: 4 }}>
+                            <div className="text-xs text-red-500 mt-1">
                                 失败：{record.failed_dbs} 个库异常，{record.failed_sqls} 条SQL失败
                             </div>
-                        ) : (
-                            <div style={{ fontSize: 12, color: '#10b981', marginTop: 4, visibility: allSuccess ? 'visible' : 'hidden' }}>
+                        ) : allSuccess ? (
+                            <div className="text-xs text-emerald-600 mt-1 font-medium">
                                 全部执行成功
                             </div>
-                        )}
+                        ) : null}
                     </div>
                 );
             },
@@ -202,14 +251,15 @@ const QueryTaskPage: React.FC = () => {
             title: '操作',
             valueType: 'option',
             search: false,
-            width: 88,
+            width: 80,
             fixed: 'right',
             render: (_, record) => [
                 <Button
                     key="view"
-                    type="link"
+                    type="text"
                     size="small"
-                    icon={<EyeOutlined />}
+                    icon={<EyeOutlined className="text-slate-500" />}
+                    className="!text-slate-700 hover:!text-slate-900 hover:!bg-slate-100 !px-2 !h-7 !text-xs !rounded-md"
                     onClick={() => handleViewDetail(record)}
                 >
                     详情
@@ -265,8 +315,9 @@ const QueryTaskPage: React.FC = () => {
                                         icon={<DeleteOutlined />}
                                         disabled={selectedRowKeys.length === 0}
                                         onClick={handleBatchDelete}
+                                        className="!rounded-md !text-xs !h-8"
                                     >
-                                        批量删除
+                                        {selectedRowKeys.length > 0 ? `批量删除 (${selectedRowKeys.length})` : '批量删除'}
                                     </Button>,
                                 ]}
                                 request={async (params, sort) => {

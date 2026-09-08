@@ -102,36 +102,55 @@ const InstancePage: React.FC = () => {
             dataIndex: 'host',
             copyable: true,
             ellipsis: true,
+            render: (text) => <span className="font-mono text-xs text-slate-700">{text}</span>,
         },
         {
             title: '数据库版本',
             dataIndex: 'version',
             ellipsis: true,
             hideInSearch: true,
-            render: (text) => <Tag>{text}</Tag>,
+            // 数据库版本号使用紧凑代码微标呈现
+            render: (text) => {
+                if (!text) {
+                    return <span className="text-slate-300">-</span>;
+                }
+                return (
+                    <span className="font-mono text-xs px-2 py-0.5 rounded bg-slate-100 text-slate-700 border border-slate-200/60">
+                        {text}
+                    </span>
+                );
+            },
         },
         {
             title: '定时同步',
             dataIndex: 'sync_interval',
             hideInSearch: true,
+            // 渲染定时同步频率与上次同步时间
             render: (_, record) => {
-                const interval = record.sync_interval;
-                if (interval === 0) return <Tag>关闭</Tag>;
+                // 未启用自动同步时展示轻量灰色状态标签
+                if (record.sync_interval === 0) {
+                    return (
+                        <span className="inline-flex items-center px-2 py-0.5 rounded text-xs text-slate-400 bg-slate-100">
+                            未启用
+                        </span>
+                    );
+                }
 
+                // 开启定时同步时展示中性灰卡片式微标，包含同步频率与上次同步时间
                 return (
-                    <Tag color="processing" style={{ height: 'auto', padding: '6px 8px', lineHeight: 'normal', border: 'none' }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                            <ClockCircleOutlined />
-                            <div>
-                                <div>{formatFrequency(interval)}</div>
-                                {record.last_sync_at && (
-                                    <div style={{ fontSize: '12px', color: '#888', marginTop: '2px' }}>
-                                        上次: {formatRelativeTime(record.last_sync_at)}
-                                    </div>
-                                )}
-                            </div>
+                    <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded border border-slate-200 bg-slate-50/70 text-slate-700 text-xs">
+                        <ClockCircleOutlined className="text-slate-400" />
+                        <div className="flex flex-col">
+                            <span className="font-medium text-slate-800 leading-tight">
+                                {formatFrequency(record.sync_interval)}
+                            </span>
+                            {record.last_sync_at ? (
+                                <span className="text-[10px] text-slate-400 leading-tight mt-0.5">
+                                    上次: {formatRelativeTime(record.last_sync_at)}
+                                </span>
+                            ) : null}
                         </div>
-                    </Tag>
+                    </div>
                 );
             },
         },
@@ -139,6 +158,13 @@ const InstancePage: React.FC = () => {
             title: '备注',
             dataIndex: 'remark',
             ellipsis: true,
+            // 备注为空时展示占位符
+            render: (text) => {
+                if (!text) {
+                    return <span className="text-slate-300 text-xs">-</span>;
+                }
+                return <span className="text-slate-600 text-xs">{text}</span>;
+            },
         },
         {
             title: '创建时间',
@@ -150,14 +176,16 @@ const InstancePage: React.FC = () => {
             title: '操作',
             valueType: 'option',
             key: 'option',
-            width: 160,
+            width: 140,
+            // 操作列提供编辑抽屉入口与二次确认删除
             render: (_, record) => (
-                <Space size="small">
+                <Space size={4}>
                     <Button
                         key="edit"
-                        type="link"
+                        type="text"
                         size="small"
-                        icon={<EditOutlined />}
+                        icon={<EditOutlined className="text-slate-500" />}
+                        className="!text-slate-700 hover:!text-slate-900 hover:!bg-slate-100 !px-2 !h-7 !text-xs !rounded-md"
                         onClick={() => {
                             setEditingInstance(record);
                             setDrawerVisible(true);
@@ -168,6 +196,7 @@ const InstancePage: React.FC = () => {
                     <Popconfirm
                         key="delete"
                         title="确定要删除这个实例吗？"
+                        description="删除实例将同步解除关联库配置，请谨慎操作。"
                         onConfirm={async () => {
                             try {
                                 await deleteInstance({ instanceId: String(record.id) });
@@ -179,10 +208,11 @@ const InstancePage: React.FC = () => {
                         }}
                     >
                         <Button
-                            type="link"
+                            type="text"
                             size="small"
                             danger
                             icon={<DeleteOutlined />}
+                            className="!px-2 !h-7 !text-xs !rounded-md"
                         >
                             删除
                         </Button>
@@ -322,28 +352,30 @@ const InstancePage: React.FC = () => {
                         showUploadList={false}
                         disabled={importing}
                         onChange={(info) => {
+                            // 导入处理中设置加载态
                             if (info.file.status === 'uploading') {
                                 setImporting(true);
                             } else if (info.file.status === 'done') {
                                 setImporting(false);
-                                if (info.file.response.code === 200) {
-                                    const { succeeded, failed, skipped, errors } = info.file.response.data;
+                                // 导入返回成功时弹出统计信息弹窗
+                                if (info.file.response?.code === 200) {
+                                    const { succeeded, failed, skipped, errors } = info.file.response.data || {};
                                     Modal.success({
                                         title: '导入完成',
                                         content: (
-                                            <div>
+                                            <div className="space-y-1 text-xs">
                                                 <p>成功: {succeeded}</p>
                                                 <p>失败: {failed}</p>
                                                 <p>跳过: {skipped}</p>
                                                 {errors && errors.length > 0 && (
-                                                    <p>错误详情: {errors.join(', ')}</p>
+                                                    <p className="text-red-500">错误详情: {errors.join(', ')}</p>
                                                 )}
                                             </div>
                                         ),
                                     });
                                     actionRef.current?.reload();
                                 } else {
-                                    message.error(info.file.response.message || '导入失败');
+                                    message.error(info.file.response?.message || '导入失败');
                                 }
                             } else if (info.file.status === 'error') {
                                 setImporting(false);
@@ -355,6 +387,7 @@ const InstancePage: React.FC = () => {
                             icon={importing ? <LoadingOutlined /> : <UploadOutlined />}
                             loading={importing}
                             disabled={importing}
+                            className="!rounded-md !text-xs !h-8"
                         >
                             {importing ? '导入中...' : '导入配置'}
                         </Button>
@@ -371,6 +404,7 @@ const InstancePage: React.FC = () => {
                             icon={batchDeleting ? <LoadingOutlined /> : <DeleteOutlined />}
                             disabled={selectedRows.length === 0 || batchDeleting}
                             loading={batchDeleting}
+                            className="!rounded-md !text-xs !h-8"
                         >
                             {batchDeleting ? '删除中...' : `批量删除 (${selectedRows.length})`}
                         </Button>
@@ -381,6 +415,7 @@ const InstancePage: React.FC = () => {
                         icon={exporting ? <LoadingOutlined /> : <DownloadOutlined />}
                         disabled={exporting}
                         loading={exporting}
+                        className="!rounded-md !text-xs !h-8"
                     >
                         {selectedRows.length > 0 ? '导出选中配置' : '导出全部配置'}
                     </Button>,
@@ -389,6 +424,7 @@ const InstancePage: React.FC = () => {
                         onClick={handleSyncDatabases}
                         icon={syncing ? <LoadingOutlined /> : <SyncOutlined />}
                         disabled={selectedRows.length === 0 || syncing}
+                        className="!rounded-md !text-xs !h-8"
                     >
                         {syncing ? '同步中...' : '同步数据库'}
                     </Button>,
@@ -400,6 +436,7 @@ const InstancePage: React.FC = () => {
                             setDrawerVisible(true);
                         }}
                         icon={<PlusOutlined />}
+                        className="!rounded-md !text-xs !h-8 shadow-xs"
                     >
                         新增实例
                     </Button>,

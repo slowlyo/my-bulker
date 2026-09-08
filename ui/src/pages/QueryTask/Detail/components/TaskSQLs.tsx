@@ -1,8 +1,9 @@
 import React from 'react';
-import { Card, Collapse, Tag, Space, Row, Col, Typography, Divider, Spin, Tooltip } from 'antd';
-import { CodeOutlined, DatabaseOutlined, ClockCircleOutlined, InfoCircleOutlined, CheckCircleOutlined, CloseCircleOutlined, LoadingOutlined, ClusterOutlined } from '@ant-design/icons';
+import { Card, Collapse, Tag, Space, Row, Col, Typography, Divider, Spin, Tooltip, Button, message } from 'antd';
+import { CodeOutlined, DatabaseOutlined, ClockCircleOutlined, InfoCircleOutlined, CheckCircleOutlined, CloseCircleOutlined, LoadingOutlined, ClusterOutlined, CopyOutlined } from '@ant-design/icons';
 import { QueryTaskSQLInfo } from '@/services/queryTask/typings';
 import { formatDateTime } from '@/utils/format';
+import Editor from '@monaco-editor/react';
 
 const { Panel } = Collapse;
 const { Text } = Typography;
@@ -14,6 +15,25 @@ interface TaskSQLsProps {
     statusColor?: (status: number) => string;
 }
 
+/**
+ * 根据 SQL 代码行数自适应计算 Monaco 编辑器展示高度，避免空白过多或过度压缩。
+ * @param content SQL 文本内容
+ * @returns 像素高度
+ */
+const getSqlEditorHeight = (content: string): number => {
+    // 空内容兜底为 60px
+    if (!content) {
+        return 60;
+    }
+    const lineCount = content.split('\n').length;
+    // 单行行高 20px 叠加基础内边距，高度区间限制在 64px 至 260px 之间
+    return Math.min(Math.max(lineCount * 20 + 16, 64), 260);
+};
+
+/**
+ * 任务 SQL 列表与数据库执行进度面板，按 SQL 顺序展开展示各数据库的执行状态与详细信息。
+ * @param props 组件属性
+ */
 const TaskSQLs: React.FC<TaskSQLsProps> = ({ sqls, sqlExecutions, loading, statusColor }) => {
     if (!sqls || sqls.length === 0) {
         return (
@@ -104,25 +124,53 @@ const TaskSQLs: React.FC<TaskSQLsProps> = ({ sqls, sqlExecutions, loading, statu
                     })(),
                     style: {
                         marginBottom: '8px',
-                        borderBottom: '1px solid #f3f4f6',
+                        borderBottom: '1px solid #f1f5f9',
                     },
                     children: (
                         <div style={{ padding: '0 0 12px 24px' }}>
-                            <div style={{
-                                background: '#f9fafb',
-                                border: '1px solid #e5e7eb',
-                                borderRadius: '4px',
-                                padding: '8px 12px',
-                                fontFamily: 'SFMono-Regular, Consolas, "Liberation Mono", Menlo, monospace',
-                                fontSize: '12px',
-                                lineHeight: '1.5',
-                                whiteSpace: 'pre-wrap',
-                                wordBreak: 'break-all',
-                                maxHeight: '200px',
-                                overflow: 'auto',
-                                color: '#374151'
-                            }}>
-                                {sql.sql_content}
+                            {/* SQL 语法高亮面板，支持一键复制代码 */}
+                            <div className="border border-slate-200 rounded-md overflow-hidden bg-white shadow-2xs mb-4">
+                                <div className="flex items-center justify-between px-3 py-1.5 bg-slate-50/90 border-b border-slate-100 text-xs text-slate-400">
+                                    <span className="font-mono text-slate-600 font-medium">SQL 语句 #{sql.sql_order}</span>
+                                    <Button
+                                        type="text"
+                                        size="small"
+                                        icon={<CopyOutlined />}
+                                        onClick={() => {
+                                            navigator.clipboard.writeText(sql.sql_content);
+                                            message.success('SQL 已复制到剪贴板');
+                                        }}
+                                        className="h-6 px-1.5 text-xs text-slate-500 hover:text-slate-800"
+                                    >
+                                        复制
+                                    </Button>
+                                </div>
+                                <Editor
+                                    height={getSqlEditorHeight(sql.sql_content)}
+                                    language="sql"
+                                    value={sql.sql_content}
+                                    theme="vs"
+                                    options={{
+                                        readOnly: true,
+                                        domReadOnly: true,
+                                        minimap: { enabled: false },
+                                        scrollBeyondLastLine: false,
+                                        fontSize: 12,
+                                        lineNumbers: 'on',
+                                        lineNumbersMinChars: 3,
+                                        folding: false,
+                                        automaticLayout: true,
+                                        wordWrap: 'on',
+                                        lineHeight: 20,
+                                        renderLineHighlight: 'none',
+                                        scrollbar: {
+                                            vertical: 'auto',
+                                            horizontal: 'hidden',
+                                        },
+                                        padding: { top: 6, bottom: 6 },
+                                    }}
+                                    loading={<div className="p-3 text-xs text-neutral-400">加载代码高亮...</div>}
+                                />
                             </div>
 
                             {/* 追加数据库进度区块，按实例分组 */}
@@ -159,21 +207,46 @@ const TaskSQLs: React.FC<TaskSQLsProps> = ({ sqls, sqlExecutions, loading, statu
                                                 </div>
                                                 <div style={{
                                                     display: 'grid',
-                                                    gridTemplateColumns: 'repeat(auto-fill, minmax(130px, 1fr))',
+                                                    gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))',
                                                     gap: '8px'
                                                 }}>
                                                     {execs.map((exec: any) => {
+                                                        // 根据执行状态匹配对应状态图标
                                                         const statusIcon = (status: number) => {
                                                             switch (status) {
-                                                                case 2: return <CheckCircleOutlined style={{ color: '#52c41a' }} />;
-                                                                case 3: return <CloseCircleOutlined style={{ color: '#ff4d4f' }} />;
-                                                                case 1: return <LoadingOutlined style={{ color: '#1890ff' }} spin />;
-                                                                case 0: return <ClockCircleOutlined style={{ color: '#d9d9d9' }} />;
-                                                                default: return null;
+                                                                case 2:
+                                                                    return <CheckCircleOutlined style={{ color: '#52c41a' }} />;
+                                                                case 3:
+                                                                    return <CloseCircleOutlined style={{ color: '#ff4d4f' }} />;
+                                                                case 1:
+                                                                    return <LoadingOutlined style={{ color: '#1890ff' }} spin />;
+                                                                case 0:
+                                                                    return <ClockCircleOutlined style={{ color: '#d9d9d9' }} />;
+                                                                default:
+                                                                    return null;
                                                             }
                                                         };
-                                                        const borderColor = statusColor ? statusColor(exec.status) : (exec.status === 3 ? '#ff4d4f' : exec.status === 2 ? '#b7eb8f' : '#d9d9d9');
-                                                        const bgColor = exec.status === 3 ? '#fff1f0' : exec.status === 2 ? '#f6ffed' : '#fff';
+
+                                                        // 获取状态对应的中文标签
+                                                        const getStatusText = (status: number): string => {
+                                                            switch (status) {
+                                                                case 0:
+                                                                    return '待执行';
+                                                                case 1:
+                                                                    return '执行中';
+                                                                case 2:
+                                                                    return '已完成';
+                                                                case 3:
+                                                                    return '执行失败';
+                                                                default:
+                                                                    return '未知状态';
+                                                            }
+                                                        };
+
+                                                        const borderColor = statusColor ? statusColor(exec.status) : (exec.status === 3 ? '#ff4d4f' : exec.status === 2 ? '#b7eb8f' : '#e5e7eb');
+                                                        const bgColor = exec.status === 3 ? '#fff1f0' : exec.status === 2 ? '#f6ffed' : '#ffffff';
+
+                                                        // 卡片主体：采用 Flex 水平排列，左右自然隔离避免重叠
                                                         const cardContent = (
                                                             <div
                                                                 key={exec.id}
@@ -181,27 +254,65 @@ const TaskSQLs: React.FC<TaskSQLsProps> = ({ sqls, sqlExecutions, loading, statu
                                                                     background: bgColor,
                                                                     border: `1px solid ${borderColor}`,
                                                                     borderRadius: '6px',
-                                                                    padding: '6px 8px',
-                                                                    fontSize: '11px',
-                                                                    position: 'relative',
+                                                                    padding: '6px 10px',
                                                                     display: 'flex',
-                                                                    flexDirection: 'column',
-                                                                    overflow: 'hidden'
+                                                                    alignItems: 'center',
+                                                                    justifyContent: 'space-between',
+                                                                    gap: '8px',
+                                                                    cursor: 'pointer',
+                                                                    transition: 'all 0.2s',
                                                                 }}
                                                             >
-                                                                <div style={{ position: 'absolute', top: 6, right: 6 }}>
-                                                                    {statusIcon(exec.status)}
+                                                                <div style={{
+                                                                    display: 'flex',
+                                                                    alignItems: 'center',
+                                                                    gap: '6px',
+                                                                    minWidth: 0,
+                                                                    flex: 1
+                                                                }}>
+                                                                    <DatabaseOutlined style={{ color: '#9ca3af', fontSize: '12px', flexShrink: 0 }} />
+                                                                    <span
+                                                                        style={{
+                                                                            fontWeight: 500,
+                                                                            fontSize: '12px',
+                                                                            color: '#1f2937',
+                                                                            overflow: 'hidden',
+                                                                            textOverflow: 'ellipsis',
+                                                                            whiteSpace: 'nowrap',
+                                                                            fontFamily: 'monospace',
+                                                                        }}
+                                                                    >
+                                                                        {exec.database_name}
+                                                                    </span>
                                                                 </div>
-                                                                <div style={{ fontWeight: 500, fontSize: '12px', color: '#1f2937', paddingRight: '16px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                                                                    {exec.database_name}
+                                                                <div style={{ flexShrink: 0, display: 'flex', alignItems: 'center' }}>
+                                                                    {statusIcon(exec.status)}
                                                                 </div>
                                                             </div>
                                                         );
-                                                        return exec.status === 3 && exec.error_message ? (
-                                                            <Tooltip title={exec.error_message} placement="top" key={exec.id}>
+
+                                                        // Tooltip 弹出提示：完整展示数据库全名、状态与错误原因
+                                                        const tooltipTitle = (
+                                                            <div style={{ fontSize: '12px', padding: '2px 0' }}>
+                                                                <div style={{ fontWeight: 600, color: '#ffffff', wordBreak: 'break-all', fontFamily: 'monospace' }}>
+                                                                    {exec.database_name}
+                                                                </div>
+                                                                <div style={{ color: '#d1d5db', marginTop: '2px' }}>
+                                                                    实例: {instanceName} · 状态: {getStatusText(exec.status)}
+                                                                </div>
+                                                                {exec.status === 3 && exec.error_message && (
+                                                                    <div style={{ color: '#fca5a5', marginTop: '4px', borderTop: '1px solid rgba(255,255,255,0.2)', paddingTop: '4px', wordBreak: 'break-all' }}>
+                                                                        错误: {exec.error_message}
+                                                                    </div>
+                                                                )}
+                                                            </div>
+                                                        );
+
+                                                        return (
+                                                            <Tooltip title={tooltipTitle} placement="top" key={exec.id}>
                                                                 {cardContent}
                                                             </Tooltip>
-                                                        ) : cardContent;
+                                                        );
                                                     })}
                                                 </div>
                                             </div>

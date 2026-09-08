@@ -1,5 +1,4 @@
 import React from 'react';
-import { Space } from 'antd';
 import { DatabaseOutlined, CodeOutlined } from '@ant-design/icons';
 
 interface ExecutionStatsProps {
@@ -9,73 +8,92 @@ interface ExecutionStatsProps {
     };
 }
 
+/**
+ * 任务执行指标统计面板，分别展示数据库与 SQL 维度的覆盖总数、完成进度与失败率。
+ * @param props 组件属性
+ */
 const ExecutionStats: React.FC<ExecutionStatsProps> = ({ stats }) => {
     const { db, sql } = stats;
-    
+
+    /**
+     * 渲染单个指标统计卡片（数据库或 SQL）。
+     * @param title 指标标题
+     * @param data 统计数据对象
+     * @param icon 前缀图标
+     */
     const renderStat = (title: string, data: any, icon: React.ReactNode) => {
         const percent = data.total > 0 ? Math.round((data.completed / data.total) * 100) : 0;
         const hasFailure = data.failed > 0;
         const allDone = data.pending === 0;
-        // 全部成功才算 success；部分失败但大部分完成用 normal；全部失败或失败占多数用 exception
-        let status: 'success' | 'exception' | 'normal' = 'normal';
-        if (!hasFailure && allDone) {
-            status = 'success';
-        } else if (hasFailure && data.failed >= data.completed) {
-            status = 'exception';
-        }
 
         return (
-            <div style={{ display: 'flex', alignItems: 'center', gap: '16px', background: '#f9fafb', padding: '10px 16px', borderRadius: '6px', border: '1px solid #e5e7eb' }}>
-                <div style={{ display: 'flex', alignItems: 'center', width: '120px' }}>
-                    <span style={{ marginRight: '8px', color: '#1890ff', fontSize: '16px' }}>{icon}</span>
-                    <span style={{ fontSize: '13px', fontWeight: 500, color: '#374151' }}>{title}</span>
+            <div className="bg-white p-4 rounded-lg border border-slate-200 shadow-2xs flex flex-col justify-between gap-3">
+                {/* 顶部标题与完成率 */}
+                <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                        <span className="text-slate-500 text-sm">{icon}</span>
+                        <span className="text-sm font-semibold text-slate-800">{title}</span>
+                    </div>
+                    <div className="flex items-center gap-1">
+                        <span className="text-xs text-slate-400 font-medium">完成率</span>
+                        <span className={`text-sm font-bold font-mono ${hasFailure ? 'text-rose-600' : allDone ? 'text-emerald-600' : 'text-slate-700'}`}>
+                            {percent}%
+                        </span>
+                    </div>
                 </div>
 
-                <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: '16px' }}>
-                    <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: '2px' }}>
-                        {/* 成功部分 */}
-                        <div style={{
-                            flex: data.completed,
-                            height: 6,
-                            borderRadius: '3px 0 0 3px',
-                            background: allDone && !hasFailure ? '#52c41a' : '#1890ff',
-                            borderTopRightRadius: hasFailure ? 0 : 3,
-                            borderBottomRightRadius: hasFailure ? 0 : 3,
-                        }} />
-                        {/* 失败部分 */}
-                        {hasFailure && (
-                            <div style={{
-                                flex: data.failed,
-                                height: 6,
-                                background: '#ff4d4f',
-                                borderRadius: data.completed === 0 ? '3px' : '0 3px 3px 0',
-                            }} />
-                        )}
-                        {/* 未执行部分 */}
-                        {data.pending > 0 && (
-                            <div style={{
-                                flex: data.pending,
-                                height: 6,
-                                background: '#e5e7eb',
-                                borderRadius: (data.completed === 0 && !hasFailure) ? '3px' : '0 3px 3px 0',
-                            }} />
-                        )}
+                {/* 分段进度条 */}
+                <div className="w-full flex h-2 rounded-full overflow-hidden bg-slate-100">
+                    {/* 成功执行分段 */}
+                    <div
+                        style={{ flex: data.completed }}
+                        className={`${allDone && !hasFailure ? 'bg-emerald-500' : 'bg-slate-900'} transition-all`}
+                    />
+                    {/* 异常失败分段 */}
+                    {hasFailure && (
+                        <div
+                            style={{ flex: data.failed }}
+                            className="bg-rose-500 transition-all"
+                        />
+                    )}
+                    {/* 等待调度分段 */}
+                    {data.pending > 0 && (
+                        <div
+                            style={{ flex: data.pending }}
+                            className="bg-slate-200"
+                        />
+                    )}
+                </div>
+
+                {/* 底部明细数量统计 */}
+                <div className="grid grid-cols-4 gap-2 pt-1 border-t border-slate-100 text-xs text-slate-500">
+                    <div>
+                        <span className="text-neutral-400 block scale-90 origin-left">总计</span>
+                        <span className="font-semibold text-neutral-800 font-mono">{data.total}</span>
                     </div>
-                    <Space size={12} style={{ fontSize: '12px', flexShrink: 0 }}>
-                        <span style={{ color: '#6b7280' }}>共 <span style={{ fontWeight: 500, color: '#374151' }}>{data.total}</span></span>
-                        <span style={{ color: allDone && !hasFailure ? '#10b981' : '#1890ff' }}>✓ {data.completed}</span>
-                        {hasFailure && <span style={{ color: '#ef4444' }}>✗ {data.failed}</span>}
-                        {data.pending > 0 && <span style={{ color: '#6b7280' }}>待执行 {data.pending}</span>}
-                    </Space>
+                    <div>
+                        <span className="text-neutral-400 block scale-90 origin-left">成功</span>
+                        <span className="font-semibold text-emerald-600 font-mono">{data.completed}</span>
+                    </div>
+                    <div>
+                        <span className="text-neutral-400 block scale-90 origin-left">失败</span>
+                        <span className={`font-semibold font-mono ${hasFailure ? 'text-rose-600' : 'text-neutral-400'}`}>
+                            {data.failed}
+                        </span>
+                    </div>
+                    <div>
+                        <span className="text-neutral-400 block scale-90 origin-left">待执行</span>
+                        <span className="font-semibold text-neutral-500 font-mono">{data.pending}</span>
+                    </div>
                 </div>
             </div>
         );
     };
 
     return (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '16px', marginBottom: 16 }}>
-            {renderStat('数据库进度', db, <DatabaseOutlined />)}
-            {renderStat('SQL语句进度', sql, <CodeOutlined />)}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+            {renderStat('数据库执行进度', db, <DatabaseOutlined />)}
+            {renderStat('SQL 执行进度', sql, <CodeOutlined />)}
         </div>
     );
 };

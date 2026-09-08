@@ -8,37 +8,47 @@ interface SQLEditorProps {
     height?: number | string;
 }
 
+/**
+ * SQL 代码编辑器组件，基于 Monaco Editor 提供高亮与代码编辑能力。
+ * @param props 编辑器属性配置
+ */
 const SQLEditor: React.FC<SQLEditorProps> = ({
     value = '',
     onChange,
-    placeholder = '请输入SQL语句，支持多条语句（用分号分隔）',
-    height = 220,
+    placeholder = '请输入 SQL 语句，支持多条语句（以分号分隔）',
+    height = 360,
 }) => {
     return (
-        <div style={{ border: '1px solid #d9d9d9', borderRadius: 6, overflow: 'hidden' }}>
+        <div className="border border-slate-200 rounded-md overflow-hidden bg-white shadow-xs">
             <Editor
                 height={height}
                 language="sql"
                 value={value}
-                onChange={(v: string | undefined) => onChange?.(v ?? '')}
+                onChange={(v: string | undefined) => {
+                    // 当内容发生变更时向外层表单同步，空值兜底为空字符串
+                    if (onChange) {
+                        onChange(v ?? '');
+                    }
+                }}
                 options={{
                     minimap: { enabled: false },
-                    lineNumbers: 'off',
+                    lineNumbers: 'on',
+                    lineNumbersMinChars: 3,
                     glyphMargin: false,
-                    folding: false,
-                    lineDecorationsWidth: 0,
-                    lineNumbersMinChars: 0,
-                    fontSize: 14,
+                    folding: true,
+                    fontSize: 13,
                     lineHeight: 20,
                     wordWrap: 'on',
                     scrollBeyondLastLine: false,
                     automaticLayout: true,
+                    renderLineHighlight: 'all',
                 }}
                 theme="vs"
-                loading="加载编辑器中..."
+                loading={<div className="p-4 text-xs text-slate-400">加载编辑器中...</div>}
             />
-            <div style={{ padding: '6px 10px', fontSize: 12, color: '#8c8c8c', borderTop: '1px solid #f0f0f0' }}>
-                {placeholder}
+            <div className="px-3 py-1.5 text-xs text-slate-400 border-t border-slate-100 flex items-center justify-between bg-slate-50/60">
+                <span>{placeholder}</span>
+                <span className="font-mono">SQL Mode</span>
             </div>
         </div>
     );

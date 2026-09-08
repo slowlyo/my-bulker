@@ -191,26 +191,57 @@ const QueryTaskDetailPage: React.FC = () => {
         }
     };
 
+    // 切换到查询结果页签并更新地址栏参数
+    const handleSwitchToResults = () => {
+        setActiveTab('results');
+        const searchParams = new URLSearchParams(location.search);
+        searchParams.set('tab', 'results');
+        history.replace({
+            pathname: location.pathname,
+            search: searchParams.toString(),
+        });
+    };
+
     const tabItems = [
         {
             key: 'detail',
             label: '任务概览',
             children: (
-                <Space direction="vertical" style={{ width: '100%' }} size={16}>
+                <div className="flex flex-col gap-4">
                     <QueryTaskBaseInfo task={task} status={status} />
+
+                    {/* 任务执行完成时提供直达结果表的快捷跳转引导 */}
+                    {task.status === 2 && (
+                        <div className="bg-emerald-50/60 border border-emerald-200/80 rounded-lg p-3 px-4 flex items-center justify-between shadow-2xs">
+                            <div className="flex items-center gap-2 text-xs text-emerald-800">
+                                <span className="w-2 h-2 rounded-full bg-emerald-500" />
+                                <span>查询任务已执行完成，结果数据表已就绪</span>
+                            </div>
+                            <Button
+                                type="link"
+                                size="small"
+                                onClick={handleSwitchToResults}
+                                className="text-xs text-emerald-700 font-medium hover:text-emerald-900 p-0"
+                            >
+                                前往查看查询结果 →
+                            </Button>
+                        </div>
+                    )}
+
                     {stats && <ExecutionStats stats={stats} />}
+
                     <TaskSQLs 
                         sqls={sqlList} 
                         sqlExecutions={sqlExecutions}
                         loading={loading}
                         statusColor={statusColor}
                     />
-                </Space>
+                </div>
             ),
         },
         {
             key: 'results',
-            label: '查询结果',
+            label: `查询结果${sqlList.length > 0 ? ` (${sqlList.length})` : ''}`,
             children: (
                 <QueryResultsPanel sqls={sqlList} ref={resultsPanelRef} />
             ),
@@ -221,15 +252,23 @@ const QueryTaskDetailPage: React.FC = () => {
         <PageContainer
             ghost
             header={{
-                title: '任务详情',
+                title: (
+                    <div className="flex items-center gap-3">
+                        <span>任务详情</span>
+                        <Tag color={status.color} className="m-0 border-none px-2.5 py-0.5 text-xs font-normal">
+                            {status.text}
+                        </Tag>
+                    </div>
+                ),
                 onBack: handleBack,
                 extra: [
                     <Button
                         key="refresh"
-                        icon={<ReloadOutlined spin={loading} />}
+                        icon={<ReloadOutlined spin={loading || task.status === 1} />}
                         disabled={loading}
                         onClick={async () => {
                             await loadAllData();
+                            // 当前位于结果页签时同步触发表格刷新
                             if (activeTab === 'results') {
                                 resultsPanelRef.current?.refresh();
                             }
@@ -243,6 +282,7 @@ const QueryTaskDetailPage: React.FC = () => {
                         disabled={task.status === 1}
                         loading={runBtnLoading}
                         onClick={async () => {
+                            // 无有效任务 ID 时拦截
                             if (!id) return;
                             setRunBtnLoading(true);
                             try {
@@ -270,10 +310,10 @@ const QueryTaskDetailPage: React.FC = () => {
                 defaultActiveKey="detail" 
                 items={tabItems}
                 activeKey={activeTab}
-                style={{ marginTop: 8 }}
+                style={{ marginTop: 4 }}
                 tabBarStyle={{ 
-                    marginBottom: 20,
-                    paddingLeft: 4,
+                    marginBottom: 16,
+                    paddingLeft: 2,
                     borderBottom: '1px solid #f0f0f0' 
                 }}
                 onChange={(key) => {

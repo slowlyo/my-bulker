@@ -1,3 +1,62 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+@layer base {
+  body {
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  /* 优化滚动条质感，与极简中性灰风格保持一致 */
+  ::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  ::-webkit-scrollbar-thumb {
+    background: #cbd5e1;
+    border-radius: 9999px;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: #94a3b8;
+  }
+}
+
+/* 全局统一边框色变量：采用轻柔优雅的浅灰，彻底解决卡片偏深与各区域深浅不一致的问题 */
+:root {
+  --app-border-color: #edf0f4;
+}
+
+/* 增强侧边栏右侧分界线与微阴影，使导航区与背景形成清晰对比 */
+.ant-layout-sider,
+.ant-pro-sider,
+aside.ant-layout-sider {
+  border-right: 1px solid #e2e8f0 !important;
+  box-shadow: 1px 0 3px 0 rgba(0, 0, 0, 0.03) !important;
+}
+
+/* 增强顶栏底部分割线与阴影，保持布局边界一致清晰 */
+.ant-layout-header,
+.ant-pro-global-header {
+  border-bottom: 1px solid #e2e8f0 !important;
+  box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.02) !important;
+}
+
+/* 统一全站所有卡片、CRUD表格、搜索栏及手写容器边框，实现完全同色同浅度 */
+.ant-card-bordered,
+.ant-pro-card,
+.ant-pro-card-bordered,
+.ant-pro-table-search,
+.ant-table-wrapper .ant-table,
+.ant-table-wrapper .ant-table-container,
+.border-slate-200 {
+  border-color: var(--app-border-color) !important;
+}
+
+/* 统一轻量内部分割线 */
+.border-slate-100 {
+  border-color: #f6f8fa !important;
+}
