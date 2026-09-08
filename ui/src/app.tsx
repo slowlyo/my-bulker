@@ -52,27 +52,50 @@ export const layout = () => {
             // 侧栏收起折叠态：仅展示品牌图标以保持视觉对齐
             if (props?.collapsed) {
                 return (
-                    <div className="flex items-center justify-center w-full py-2">
-                        <Logo size={28} className="shadow-xs cursor-pointer" />
+                    <div
+                        className="flex items-center justify-center w-full py-2 cursor-pointer select-none"
+                        onClick={() => history.push("/home")}
+                    >
+                        <Logo size={28} className="shadow-xs" />
                     </div>
                 );
             }
 
-            // 侧栏展开态：仅展示品牌徽标与名称版本，去除冗余描述
+            // 侧栏展开态：仅展示品牌徽标与应用名称，避免版本号过长导致标题换行
             return (
                 <div
                     className="flex items-center gap-2.5 px-1 py-1 cursor-pointer select-none"
                     onClick={() => history.push("/home")}
                 >
                     <Logo size={28} className="shrink-0 shadow-xs" />
-                    <div className="flex items-center gap-1.5 min-w-0">
-                        <span className="font-semibold text-sm text-slate-900 tracking-tight leading-tight">
-                            My Bulker
-                        </span>
-                        <span className="text-[10px] px-1 py-0.2 rounded bg-slate-100 text-slate-500 font-mono leading-tight">
+                    <span className="font-semibold text-sm text-slate-900 tracking-tight leading-tight whitespace-nowrap">
+                        My Bulker
+                    </span>
+                </div>
+            );
+        },
+        // 侧边栏底部展示版本号，保持顶部标题整洁且在折叠态优雅降级
+        menuFooterRender: (props?: any) => {
+            if (props?.collapsed) {
+                return (
+                    <div className="py-2.5 flex justify-center items-center select-none">
+                        <Tooltip title={`版本 ${APP_VERSION}`} placement="right">
+                            <span className="text-[10px] text-slate-400 font-mono px-1 py-0.5 rounded bg-slate-50 cursor-default">
+                                {APP_VERSION.split('-')[0]}
+                            </span>
+                        </Tooltip>
+                    </div>
+                );
+            }
+
+            return (
+                <div className="px-4 py-3 border-t border-slate-100 flex items-center justify-between text-xs text-slate-400 select-none">
+                    <span className="text-slate-400">版本</span>
+                    <Tooltip title={APP_VERSION} placement="top">
+                        <span className="text-[11px] px-1.5 py-0.5 rounded bg-slate-100 text-slate-600 font-mono leading-tight truncate max-w-[130px] cursor-default">
                             {APP_VERSION}
                         </span>
-                    </div>
+                    </Tooltip>
                 </div>
             );
         },
