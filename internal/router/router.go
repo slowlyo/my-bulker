@@ -18,6 +18,7 @@ func Register(app *fiber.App) {
 	configHandler := handler.NewConfigHandler()
 	dashboardHandler := handler.NewDashboardHandler()
 	dbDocHandler := handler.NewDbDocHandler()
+	updateHandler := handler.NewUpdateHandler()
 
 	// 全局中间件
 	app.Use(middleware.CORS())
@@ -77,6 +78,7 @@ func Register(app *fiber.App) {
 		api.Post("/configs/set", configHandler.SetConfig)             // 保存配置
 		api.Post("/configs/save", configHandler.SaveConfigs)          // 批量保存配置
 		api.Post("/configs/batch-get", configHandler.BatchGetConfigs) // 批量获取配置
+		api.Get("/updates/check", updateHandler.Check)                 // 检查应用更新
 
 		// 数据库文档管理
 		dbDocs := api.Group("/db-docs")
