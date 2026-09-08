@@ -8,6 +8,7 @@ require (
 	github.com/gofiber/fiber/v2 v2.52.8
 	github.com/robfig/cron/v3 v3.0.1
 	github.com/wailsapp/wails/v2 v2.12.0
+	golang.org/x/mod v0.33.0
 	golang.org/x/sync v0.15.0
 	gorm.io/driver/mysql v1.5.2
 	gorm.io/gorm v1.30.0
