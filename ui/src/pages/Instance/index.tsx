@@ -1,8 +1,9 @@
 import { PageContainer, ProTable } from '@ant-design/pro-components';
 import type { ActionType, ProColumns } from '@ant-design/pro-components';
 import { Button, Popconfirm, message, Space, Tag, Spin, Upload, Modal, Tooltip } from 'antd';
+import type { UploadProps } from 'antd';
 import { useRef, useState } from 'react';
-import { addInstance, deleteInstance, batchDeleteInstances, getInstancePassword, modifyInstance, queryInstanceList, syncDatabases } from '@/services/instance/InstanceController';
+import { addInstance, deleteInstance, batchDeleteInstances, getInstancePassword, modifyInstance, queryInstanceList, syncDatabases, importInstances } from '@/services/instance/InstanceController';
 import InstanceForm from './components/InstanceForm';
 import { InstanceInfo, APIResponse } from '@/services/instance/typings';
 import { EditOutlined, DeleteOutlined, PlusOutlined, SyncOutlined, LoadingOutlined, UploadOutlined, DownloadOutlined, ClockCircleOutlined, CopyOutlined, KeyOutlined } from '@ant-design/icons';
@@ -328,6 +329,73 @@ const InstancePage: React.FC = () => {
         }
     };
 
+    const handleCustomImport: UploadProps['customRequest'] = async (options) => {
+        const { file, onSuccess, onError } = options;
+        setImporting(true);
+        try {
+            const formData = new FormData();
+            formData.append('file', file as Blob);
+
+            const rawRes = await importInstances(formData);
+            let res = rawRes;
+            // 兼容某些桌面 WebView 环境下响应未自动解析为对象的情况
+            if (typeof res === 'string') {
+                try {
+                    res = JSON.parse(res);
+                } catch {
+                    // 保留原样
+                }
+            }
+
+            if (res && res.code === 200) {
+                onSuccess?.(res, file as any);
+                const { succeeded = 0, failed = 0, skipped = 0, errors = [] } = res.data || {};
+                Modal.success({
+                    title: '导入完成',
+                    content: (
+                        <div className="space-y-1 text-xs">
+                            <p>成功: {succeeded}</p>
+                            <p>失败: {failed}</p>
+                            <p>跳过: {skipped}</p>
+                            {errors && errors.length > 0 && (
+                                <p className="text-red-500">错误详情: {errors.join(', ')}</p>
+                            )}
+                        </div>
+                    ),
+                });
+                if (actionRef.current?.reloadAndRest) {
+                    actionRef.current.reloadAndRest();
+                } else {
+                    actionRef.current?.reload();
+                }
+                setSelectedRows([]);
+            } else {
+                const errorMsg = res?.message || '导入失败';
+                onError?.(new Error(errorMsg));
+                message.error(errorMsg);
+            }
+        } catch (error: any) {
+            let errorMsg = '导入失败';
+            if (error?.response?.data) {
+                let data = error.response.data;
+                if (typeof data === 'string') {
+                    try {
+                        data = JSON.parse(data);
+                    } catch {
+                        // 保留原样
+                    }
+                }
+                errorMsg = data.message || errorMsg;
+            } else if (error?.message) {
+                errorMsg = error.message;
+            }
+            onError?.(error);
+            message.error(errorMsg);
+        } finally {
+            setImporting(false);
+        }
+    };
+
     return (
         <PageContainer ghost>
             <ProTable<InstanceInfo>
@@ -345,41 +413,9 @@ const InstancePage: React.FC = () => {
                 toolBarRender={() => [
                     <Upload
                         key="import"
-                        name="file"
-                        action="/api/instances/import"
                         showUploadList={false}
                         disabled={importing}
-                        onChange={(info) => {
-                            // 导入处理中设置加载态
-                            if (info.file.status === 'uploading') {
-                                setImporting(true);
-                            } else if (info.file.status === 'done') {
-                                setImporting(false);
-                                // 导入返回成功时弹出统计信息弹窗
-                                if (info.file.response?.code === 200) {
-                                    const { succeeded, failed, skipped, errors } = info.file.response.data || {};
-                                    Modal.success({
-                                        title: '导入完成',
-                                        content: (
-                                            <div className="space-y-1 text-xs">
-                                                <p>成功: {succeeded}</p>
-                                                <p>失败: {failed}</p>
-                                                <p>跳过: {skipped}</p>
-                                                {errors && errors.length > 0 && (
-                                                    <p className="text-red-500">错误详情: {errors.join(', ')}</p>
-                                                )}
-                                            </div>
-                                        ),
-                                    });
-                                    actionRef.current?.reload();
-                                } else {
-                                    message.error(info.file.response?.message || '导入失败');
-                                }
-                            } else if (info.file.status === 'error') {
-                                setImporting(false);
-                                message.error('导入失败');
-                            }
-                        }}
+                        customRequest={handleCustomImport}
                     >
                         <Button
                             icon={importing ? <LoadingOutlined /> : <UploadOutlined />}

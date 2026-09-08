@@ -62,3 +62,16 @@ export interface APIResponse<T> {
   message: string;
   data: T;
 }
+
+export interface ImportSummary {
+  succeeded: number;
+  failed: number;
+  skipped: number;
+  errors?: string[];
+}
+
+export interface Result_ImportSummary_ {
+  code: number;
+  message: string;
+  data: ImportSummary;
+}

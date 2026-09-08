@@ -1,5 +1,5 @@
 import { request } from '@umijs/max';
-import { InstanceInfo, InstanceInfoVO, Result_InstanceInfo_, Result_InstancePasswordResponse_, Result_PageInfo_InstanceInfo__, Result_string_, APIResponse } from './typings';
+import { InstanceInfo, InstanceInfoVO, Result_InstanceInfo_, Result_InstancePasswordResponse_, Result_PageInfo_InstanceInfo__, Result_string_, APIResponse, Result_ImportSummary_ } from './typings';
 
 /** 获取实例列表 GET /api/instances */
 export async function queryInstanceList(
@@ -175,4 +175,17 @@ export async function getInstanceOptions() {
     return request<APIResponse<InstanceOption[]>>('/api/instances/options', {
         method: 'GET',
     });
-} 
+}
+
+/** 导入实例配置 POST /api/instances/import */
+export async function importInstances(
+    formData: FormData,
+    options?: { [key: string]: any },
+) {
+    return request<Result_ImportSummary_>('/api/instances/import', {
+        method: 'POST',
+        data: formData,
+        ...(options || {}),
+    });
+}
+ 
