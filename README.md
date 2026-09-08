@@ -89,10 +89,18 @@ Release 会额外上传 Wails 桌面包（文件名含 `desktop`），无需再�
    - Linux：`my-bulker-desktop-linux-amd64.tar.gz`
 2. 解压后直接运行：
    - Windows：双击 `my-bulker-desktop.exe`（缺少 WebView2 时会使用内置引导安装）
-   - macOS：打开 `my-bulker-desktop.app`（未签名，若拦截请右键打开）
+   - macOS：打开 `my-bulker.app`
    - Linux：运行 `./my-bulker-desktop`，需已安装 `libgtk-3-0` 与 `libwebkit2gtk-4.1-0`
-   - macOS 桌面包若提示无法打开，可双击同目录的“修复无法打开.command”；这是应用未公证时的临时处理方式。
 3. 数据目录：Windows / Linux 绿色包默认写在可执行文件旁的 `data/`；macOS `.app` 写在 `~/Library/Application Support/my-bulker/data/`。
+
+macOS 应用目前未签名、未公证。若系统拦截，请先在 Finder 中右键 `my-bulker.app`，选择“打开”；若仍无法打开，请在终端执行：
+
+```bash
+xattr -dr com.apple.quarantine /path/to/my-bulker.app
+chmod +x /path/to/my-bulker.app/Contents/MacOS/*
+```
+
+请将 `/path/to/my-bulker.app` 替换为实际路径。以上操作仅是未签名、未公证期间的权宜之计。
 
 本地打包（需 [Wails CLI v2](https://wails.io)）：
 

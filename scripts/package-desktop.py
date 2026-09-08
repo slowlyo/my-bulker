@@ -4,7 +4,6 @@
 from __future__ import annotations
 
 import argparse
-import shlex
 import shutil
 import stat
 import sys
@@ -68,54 +67,6 @@ def add_readme(stage: Path, repo_root: Path) -> None:
         shutil.copy2(readme, stage / "README.md")
 
 
-def add_darwin_fix_script(stage: Path, app_name: str) -> None:
-    """生成可双击执行的 macOS 修复脚本，并确保 zip 记录其可执行权限。"""
-    script = stage / "修复无法打开.command"
-    quoted_app_name = shlex.quote(app_name)
-    script.write_text(
-        f"""#!/bin/bash
-
-# Finder 双击时工作目录不固定，必须先切换到脚本所在目录。
-cd "$(dirname "$0")" || exit 1
-APP_NAME={quoted_app_name}
-APP_PATH="./$APP_NAME"
-
-# 统一输出失败原因，并保留终端窗口供用户查看。
-fail() {{
-    printf '\\n修复失败：%s\\n' "$1"
-    read -r -p "按回车键关闭窗口..."
-    exit 1
-}}
-
-# 打包脚本写入了实际应用名，缺失时说明压缩包不完整。
-if [ ! -d "$APP_PATH" ]; then
-    fail "未找到同目录下的 $APP_NAME"
-fi
-
-# quarantine 必须从整个应用包递归移除，否则内部二进制仍会被 Gatekeeper 拦截。
-if ! xattr -dr com.apple.quarantine "$APP_PATH"; then
-    fail "无法移除 Gatekeeper quarantine 属性"
-fi
-
-MACOS_DIR="$APP_PATH/Contents/MacOS"
-# Wails 主程序位于 Contents/MacOS，目录缺失时不能视为修复成功。
-if [ ! -d "$MACOS_DIR" ]; then
-    fail "应用包缺少 Contents/MacOS 目录"
-fi
-
-# u+X 恢复目录遍历权限，再单独确保 Contents/MacOS 下的程序可执行。
-if ! chmod -R u+X "$APP_PATH" || ! find "$MACOS_DIR" -type f -exec chmod u+x {{}} +; then
-    fail "无法补充应用程序的可执行权限"
-fi
-
-printf '\\n修复成功，现在可以打开 %s。\\n' "$APP_NAME"
-read -r -p "按回车键关闭窗口..."
-""",
-        encoding="utf-8",
-    )
-    script.chmod(script.stat().st_mode | stat.S_IXUSR)
-
-
 def ensure_darwin_executables(app: Path) -> None:
     """确保 Wails 主程序带有用户执行位，zipfile 会将该 Unix 模式写入归档。"""
     macos_dir = app / "Contents" / "MacOS"
@@ -172,7 +123,6 @@ def main() -> int:
         staged_app = stage / app.name
         shutil.copytree(app, staged_app)
         ensure_darwin_executables(staged_app)
-        add_darwin_fix_script(stage, app.name)
         add_readme(stage, repo_root)
         zip_dir(stage, archive)
         shutil.rmtree(stage)
