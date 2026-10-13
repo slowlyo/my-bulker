@@ -144,7 +144,6 @@ APP_VERSION=v1.0.0 make build-desktop
 
 ## 📸 应用预览
 
-![home](./docs/images/home.png)
 ![instance](./docs/images/instance.png)
 ![detail](./docs/images/detail.png)
 ![setting](./docs/images/setting.png)

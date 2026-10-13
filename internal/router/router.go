@@ -16,8 +16,6 @@ func Register(app *fiber.App) {
 	queryTaskHandler := handler.NewQueryTaskHandler()
 	sqlHandler := handler.NewSQLHandler()
 	configHandler := handler.NewConfigHandler()
-	dashboardHandler := handler.NewDashboardHandler()
-	dbDocHandler := handler.NewDbDocHandler()
 	updateHandler := handler.NewUpdateHandler()
 
 	// 全局中间件
@@ -29,7 +27,6 @@ func Register(app *fiber.App) {
 	// API 路由组
 	api := app.Group("/api")
 	{
-		api.Get("/dashboard/stats", dashboardHandler.GetStats) // 仪表盘统计
 		// 实例管理
 		instances := api.Group("/instances")
 		{
@@ -50,8 +47,6 @@ func Register(app *fiber.App) {
 		// 数据库管理
 		databases := api.Group("/databases")
 		{
-			databases.Get("", databaseHandler.List)                  // 获取数据库列表
-			databases.Get("/:id", databaseHandler.Get)               // 获取数据库详情
 			databases.Post("/batch-list", databaseHandler.BatchList) // 批量查询数据库
 		}
 
@@ -78,17 +73,7 @@ func Register(app *fiber.App) {
 		api.Post("/configs/set", configHandler.SetConfig)             // 保存配置
 		api.Post("/configs/save", configHandler.SaveConfigs)          // 批量保存配置
 		api.Post("/configs/batch-get", configHandler.BatchGetConfigs) // 批量获取配置
-		api.Get("/updates/check", updateHandler.Check)                 // 检查应用更新
+		api.Get("/updates/check", updateHandler.Check)                // 检查应用更新
 
-		// 数据库文档管理
-		dbDocs := api.Group("/db-docs")
-		{
-			dbDocs.Post("", dbDocHandler.Create)       // 创建任务
-			dbDocs.Put("/:id", dbDocHandler.Update)    // 更新任务
-			dbDocs.Delete("/:id", dbDocHandler.Delete) // 删除任务
-			dbDocs.Get("/:id", dbDocHandler.Get)       // 获取任务
-			dbDocs.Get("", dbDocHandler.List)          // 获取任务列表
-			dbDocs.Post("/:id/run", dbDocHandler.Run)  // 运行任务
-		}
 	}
 }

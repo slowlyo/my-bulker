@@ -79,25 +79,7 @@ export default defineConfig({
     routes: [
         {
             path: "/",
-            redirect: "/home",
-        },
-        {
-            name: "主页",
-            path: "/home",
-            component: "./Home",
-            icon: "HomeOutlined",
-        },
-        {
-            name: "实例",
-            path: "/instance",
-            component: "./Instance",
-            icon: "ClusterOutlined",
-        },
-        {
-            name: "数据库",
-            path: "/database",
-            component: "./Database",
-            icon: "DatabaseOutlined",
+            redirect: "/query-task",
         },
         {
             name: "查询",
@@ -112,15 +94,15 @@ export default defineConfig({
             hideInMenu: true,
         },
         {
-            name: "文档生成",
-            path: "/db-doc",
-            component: "./DbDoc",
-            icon: "FileTextOutlined",
+            name: "实例",
+            path: "/instance",
+            component: "./Instance",
+            icon: "ClusterOutlined",
         },
 
         // 始终保持系统配置在最后
         {
-            name: "系统配置",
+            name: "配置",
             path: "/config",
             component: "./Config",
             icon: "SettingOutlined",

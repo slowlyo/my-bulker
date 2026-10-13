@@ -48,7 +48,7 @@ export const layout = () => {
         menu: {
             locale: false,
         },
-        siderWidth: 208,
+        siderWidth: 160,
         pageTitleRender: false,
         // 禁用侧边栏底部默认折叠按钮与附加链接，保持侧边栏极简
         collapsedButtonRender: false,
@@ -60,7 +60,7 @@ export const layout = () => {
                 return (
                     <div
                         className="flex items-center justify-center w-full py-2 cursor-pointer select-none"
-                        onClick={() => history.push("/home")}
+                        onClick={() => history.push("/query-task")}
                     >
                         <Logo size={28} className="shadow-xs" />
                     </div>
@@ -71,7 +71,7 @@ export const layout = () => {
             return (
                 <div
                     className="flex items-center gap-2.5 px-1 py-1 cursor-pointer select-none"
-                    onClick={() => history.push("/home")}
+                    onClick={() => history.push("/query-task")}
                 >
                     <Logo size={28} className="shrink-0 shadow-xs" />
                     <span className="font-semibold text-sm text-slate-900 tracking-tight leading-tight whitespace-nowrap">

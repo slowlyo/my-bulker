@@ -12,7 +12,6 @@ import (
 type SimpleSchedulerService struct {
 	db              *gorm.DB
 	instanceService *InstanceService
-	dbDocService    *DbDocService
 	ticker          *time.Ticker
 	quit            chan struct{}
 }
@@ -22,7 +21,6 @@ func NewSimpleSchedulerService() *SimpleSchedulerService {
 	return &SimpleSchedulerService{
 		db:              db,
 		instanceService: NewInstanceService(),
-		dbDocService:    NewDbDocService(db),
 		quit:            make(chan struct{}),
 	}
 }
@@ -48,7 +46,6 @@ func (s *SimpleSchedulerService) Stop() {
 
 func (s *SimpleSchedulerService) runScheduledSyncs() {
 	s.syncInstances()
-	s.runDbDocTasks()
 }
 
 // IsScheduled 检查任务是否达到运行时间
@@ -108,29 +105,6 @@ func (s *SimpleSchedulerService) syncInstances() {
 					log.Printf("ERROR: Failed to update last_sync_at for instance '%s' (ID: %d): %v", inst.Name, inst.ID, err)
 				}
 			}(instance)
-		}
-	}
-}
-
-func (s *SimpleSchedulerService) runDbDocTasks() {
-	var tasks []model.DbDocTask
-	if err := s.db.Where("is_enable = ?", true).Where("sync_interval != 0").Find(&tasks).Error; err != nil {
-		log.Printf("ERROR: Failed to get db doc tasks for scheduled run: %v", err)
-		return
-	}
-
-	for _, task := range tasks {
-		if IsScheduled(task.SyncInterval, task.LastRunAt) {
-			go func(t model.DbDocTask) {
-				if err := s.dbDocService.RunTask(t.ID); err != nil {
-					log.Printf("ERROR: Failed to run db doc task '%s' (ID: %d): %v", t.TaskName, t.ID, err)
-				}
-				now := time.Now()
-				updateData := map[string]interface{}{"last_run_at": &now}
-				if err := s.db.Model(&model.DbDocTask{}).Where("id = ?", t.ID).Updates(updateData).Error; err != nil {
-					log.Printf("ERROR: Failed to update last_run_at for db doc task '%s' (ID: %d): %v", t.TaskName, t.ID, err)
-				}
-			}(task)
 		}
 	}
 }
