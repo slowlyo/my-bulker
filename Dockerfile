@@ -13,7 +13,8 @@ RUN npm install -g pnpm
 
 # Copy package management files for the frontend
 COPY ui/package.json ui/pnpm-lock.yaml* ./ui/
-RUN cd ui && pnpm install
+# pnpm 10+ 默认拦截依赖 install 脚本，Docker 非交互环境需显式放行
+RUN cd ui && pnpm install --config.dangerouslyAllowAllBuilds=true
 
 # Copy the rest of the frontend source code
 COPY ui/ ./ui/
