@@ -12,7 +12,25 @@
 
 ## 🚀 如何运行 (推荐使用 Docker)
 
-本项目已完全容器化，您无需在本地安装 Go 或 Node.js 环境。
+### 一键启动
+
+镜像由 CI 在每次推送 `v*` tag 时自动发布到 GHCR（`linux/amd64`、`linux/arm64`）：
+
+```bash
+docker run -d --name my-bulker -p 9092:9092 -v "$(pwd)/data:/app/data" --restart always ghcr.io/slowlyo/my-bulker:latest
+```
+
+启动后访问: **http://localhost:9092**。数据保存在当前目录的 `data/`。
+
+升级：
+
+```bash
+docker pull ghcr.io/slowlyo/my-bulker:latest && docker rm -f my-bulker
+```
+
+然后重新执行上面的启动命令。可用 `:1.2.3` 这样的版本号固定版本。
+
+### 从源码构建（Docker Compose）
 
 ### 环境要求
 

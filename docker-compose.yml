@@ -2,6 +2,7 @@ version: '3.8'
 
 services:
   app:
+    image: ghcr.io/slowlyo/my-bulker:latest
     build:
       context: .
       dockerfile: Dockerfile

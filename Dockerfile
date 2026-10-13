@@ -1,10 +1,12 @@
 # Stage 1: Build the frontend assets
-FROM node:22-alpine AS frontend-builder
+# 前端产物与架构无关，固定在构建机原生平台编译，避免多架构构建时走 QEMU 模拟
+FROM --platform=$BUILDPLATFORM node:22-alpine AS frontend-builder
 WORKDIR /app
 ARG APP_VERSION=v1.0.0
+# 国内构建可传 --build-arg NPM_REGISTRY=https://registry.npmmirror.com
+ARG NPM_REGISTRY=https://registry.npmjs.org
 
-# 配置npm镜像源加速
-RUN npm config set registry https://registry.npmmirror.com
+RUN npm config set registry "${NPM_REGISTRY}"
 
 # Install pnpm
 RUN npm install -g pnpm
@@ -23,13 +25,15 @@ RUN rm -rf ui/dist
 RUN cd ui && APP_VERSION="${APP_VERSION}" pnpm build
 
 # Stage 2: Build the Go backend
-FROM golang:1.24 AS builder
+# Go 原生交叉编译（CGO 关闭），同样固定在构建机原生平台运行
+FROM --platform=$BUILDPLATFORM golang:1.24 AS builder
 WORKDIR /app
 ARG APP_VERSION=v1.0.0
-
-# 配置Go模块代理加速下载
-ENV GOPROXY=https://goproxy.cn,direct
-ENV GOSUMDB=sum.golang.google.cn
+ARG TARGETOS
+ARG TARGETARCH
+# 国内构建可传 --build-arg GOPROXY=https://goproxy.cn,direct
+ARG GOPROXY=https://proxy.golang.org,direct
+ENV GOPROXY=${GOPROXY}
 
 # Copy go module files and download dependencies
 COPY go.mod go.sum ./
@@ -44,15 +48,13 @@ COPY . .
 
 # Build the Go application, disabling CGO for a static binary
 # This makes it compatible with the minimal alpine base image
-RUN CGO_ENABLED=0 GOOS=linux go build -v -ldflags="-X my-bulker/internal/pkg/appmeta.Version=${APP_VERSION}" -o /app/my-bulker .
+RUN CGO_ENABLED=0 GOOS=${TARGETOS} GOARCH=${TARGETARCH} go build -v -ldflags="-X my-bulker/internal/pkg/appmeta.Version=${APP_VERSION}" -o /app/my-bulker .
 
 # Stage 3: Create the final, minimal production image
 FROM alpine:latest
 WORKDIR /app
 
-# 配置阿里云镜像源加速包安装
-RUN sed -i 's/dl-cdn.alpinelinux.org/mirrors.aliyun.com/g' /etc/apk/repositories && \
-    apk --no-cache add ca-certificates tzdata
+RUN apk --no-cache add ca-certificates tzdata
 
 # Copy the built Go binary from the builder stage
 COPY --from=builder /app/my-bulker .
